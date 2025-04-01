@@ -28,11 +28,4 @@ jobs:
         
     - name: Run tests
       run: |
-        pytest tests/ --cov=pandas_profiler --cov-report=xml
-        
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./coverage.xml
-        fail_ci_if_error: true 
+        pytest tests/ --cov=pandas_profiler --cov-report=xml 

@@ -3,10 +3,10 @@ name: Python Tests
 on:
   push:
     branches:
-      - release-V1.0.0  # Updated to match your current branch name
+      - main  # Updated to trigger on main branch
   pull_request:
     branches:
-      - release-V1.0.0  # Updated to match your current branch name
+      - main  # Updated to trigger on PRs targeting main
 
 jobs:
   test:

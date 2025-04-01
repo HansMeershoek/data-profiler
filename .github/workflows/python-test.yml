@@ -2,11 +2,9 @@ name: Python Tests
 
 on:
   push:
-    branches:
-      - main  # Updated to trigger on main branch
+    branches: [ main ]
   pull_request:
-    branches:
-      - main  # Updated to trigger on PRs targeting main
+    branches: [ main ]
 
 jobs:
   test:

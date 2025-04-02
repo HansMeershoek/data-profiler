@@ -2,9 +2,9 @@
 
 An interactive data profiling library for Python that generates comprehensive HTML reports with rich visualizations and PDF export capabilities.
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/HansMeershoek/py-pandas-profiler)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/HansMeershoek/pytics)
 ![Python Version](https://img.shields.io/pypi/pyversions/pytics)
-![License](https://img.shields.io/github/license/HansMeershoek/py-pandas-profiler)
+![License](https://img.shields.io/github/license/HansMeershoek/pytics)
 
 ## Features
 

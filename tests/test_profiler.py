@@ -4,8 +4,8 @@ Tests for the data profiler functionality
 import pytest
 import pandas as pd
 import numpy as np
-from pandas_profiler import profile
-from pandas_profiler.profiler import DataSizeError, ProfilerError
+from pytics import profile
+from pytics.profiler import DataSizeError, ProfilerError
 from pathlib import Path
 
 @pytest.fixture

@@ -24,8 +24,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .[dev]
+        pip install -v .[dev]
         
     - name: Run tests
       run: |
-        pytest tests/ --cov=pandas_profiler --cov-report=xml 
+        pytest tests/ --cov=pytics --cov-report=xml 

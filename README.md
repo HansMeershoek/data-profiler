@@ -1,9 +1,9 @@
-# Pandas Profiler
+# Pytics
 
 An interactive data profiling library for Python that generates comprehensive HTML reports with rich visualizations and PDF export capabilities.
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/HansMeershoek/py-pandas-profiler)
-![Python Version](https://img.shields.io/pypi/pyversions/py-pandas-profiler)
+![Python Version](https://img.shields.io/pypi/pyversions/pytics)
 ![License](https://img.shields.io/github/license/HansMeershoek/py-pandas-profiler)
 
 ## Features
@@ -27,14 +27,14 @@ An interactive data profiling library for Python that generates comprehensive HT
 ## Installation
 
 ```bash
-pip install py-pandas-profiler
+pip install pytics
 ```
 
 ## Quick Start
 
 ```python
 import pandas as pd
-from pandas_profiler import profile
+from pytics import profile
 
 # Load your dataset
 df = pd.read_csv('your_data.csv')

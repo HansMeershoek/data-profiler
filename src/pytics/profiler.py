@@ -1,7 +1,7 @@
 """
 Core profiling functionality
 """
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict, Any
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -10,6 +10,7 @@ import numpy as np
 from pathlib import Path
 import jinja2
 from xhtml2pdf import pisa
+import os
 
 class ProfilerError(Exception):
     """Base exception for data profiler errors"""
@@ -18,6 +19,186 @@ class ProfilerError(Exception):
 class DataSizeError(ProfilerError):
     """Exception raised when data size exceeds limits"""
     pass
+
+def _calculate_overview_stats(df: pd.DataFrame) -> Dict[str, Any]:
+    """Calculate overview statistics for the DataFrame"""
+    total_cells = df.size
+    missing_cells = df.isna().sum().sum()
+    duplicate_rows = df.duplicated().sum()
+    
+    return {
+        'rows': len(df),
+        'columns': len(df.columns),
+        'memory_usage': f"{df.memory_usage(deep=True).sum() / 1024**2:.2f} MB",
+        'duplicate_rows': duplicate_rows,
+        'duplicate_rows_pct': f"{(duplicate_rows / len(df)) * 100:.2f}",
+        'missing_cells': missing_cells,
+        'missing_cells_pct': f"{(missing_cells / total_cells) * 100:.2f}",
+        'avg_record_size': f"{df.memory_usage(deep=True).sum() / len(df) / 1024:.2f} KB"
+    }
+
+def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = None) -> Dict[str, Any]:
+    """Analyze a single variable/column"""
+    series = df[column]
+    total_count = len(series)
+    missing_count = series.isna().sum()
+    distinct_count = series.nunique()
+    
+    var_stats = {
+        'name': column,
+        'type': str(series.dtype),
+        'distinct_count': distinct_count,
+        'distinct_pct': f"{(distinct_count / total_count) * 100:.2f}",
+        'missing_count': missing_count,
+        'missing_pct': f"{(missing_count / total_count) * 100:.2f}"
+    }
+    
+    # Add numeric statistics if applicable
+    if series.dtype in ['int64', 'float64']:
+        desc = series.describe()
+        var_stats.update({
+            'mean': f"{desc['mean']:.2f}",
+            'std': f"{desc['std']:.2f}",
+            'min': f"{desc['min']:.2f}",
+            'q1': f"{desc['25%']:.2f}",
+            'median': f"{desc['50%']:.2f}",
+            'q3': f"{desc['75%']:.2f}",
+            'max': f"{desc['max']:.2f}"
+        })
+        
+        # Distribution plot
+        fig = go.Figure()
+        fig.add_trace(go.Histogram(x=series.dropna(), name=column))
+        fig.add_trace(go.Box(x=series.dropna(), name=column, yaxis='y2'))
+        fig.update_layout(
+            title=f"{column} Distribution",
+            yaxis2=dict(overlaying='y', side='right')
+        )
+        var_stats['distribution_plot'] = fig.to_html(full_html=False)
+        
+        # Target relationship plot if target exists
+        if target and target in df.columns:
+            if df[target].dtype in ['int64', 'float64']:
+                fig = px.scatter(df, x=column, y=target, title=f"{column} vs {target}")
+            else:
+                fig = px.box(df, x=column, y=target, title=f"{column} by {target}")
+            var_stats['target_plot'] = fig.to_html(full_html=False)
+    else:
+        # For categorical variables
+        value_counts = series.value_counts()
+        var_stats['mode'] = value_counts.index[0] if not value_counts.empty else None
+        
+        # Distribution plot
+        fig = px.bar(
+            x=value_counts.index[:20],  # Show top 20 categories
+            y=value_counts.values[:20],
+            title=f"{column} Distribution (Top 20 Categories)"
+        )
+        var_stats['distribution_plot'] = fig.to_html(full_html=False)
+        
+        # Target relationship plot if target exists
+        if target and target in df.columns and df[target].dtype in ['int64', 'float64']:
+            fig = px.box(df, x=column, y=target, title=f"{target} by {column}")
+            var_stats['target_plot'] = fig.to_html(full_html=False)
+    
+    return var_stats
+
+def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme: str = 'light') -> Dict[str, str]:
+    """Create summary plots for the report"""
+    plotly_template = 'plotly_white' if theme == 'light' else 'plotly_dark'
+    
+    # Data Types and Missing Values plot
+    fig1 = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=('Data Types', 'Missing Values'),
+        column_widths=[0.5, 0.5]
+    )
+    
+    # Data Types
+    type_counts = df.dtypes.value_counts()
+    fig1.add_trace(
+        go.Bar(x=type_counts.index.astype(str), y=type_counts.values, name='Data Types'),
+        row=1, col=1
+    )
+    
+    # Missing Values
+    missing = (df.isnull().sum() / len(df) * 100).sort_values(ascending=True)
+    fig1.add_trace(
+        go.Bar(
+            x=missing.values,
+            y=missing.index,
+            orientation='h',
+            name='Missing Values (%)'
+        ),
+        row=1, col=2
+    )
+    
+    fig1.update_layout(
+        height=400,
+        showlegend=False,
+        template=plotly_template
+    )
+    
+    # Correlations plot
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+    if len(numeric_cols) > 1:
+        corr = df[numeric_cols].corr()
+        fig2 = go.Figure(data=go.Heatmap(
+            z=corr,
+            x=corr.columns,
+            y=corr.columns,
+            colorscale='RdBu'
+        ))
+        fig2.update_layout(
+            title='Correlation Matrix',
+            height=600,
+            template=plotly_template
+        )
+        correlations_plot = fig2.to_html(full_html=False)
+    else:
+        correlations_plot = "<p>No numeric columns available for correlation analysis.</p>"
+    
+    # Target distribution plot
+    if target and target in df.columns:
+        if df[target].dtype in ['int64', 'float64']:
+            fig3 = go.Figure()
+            fig3.add_trace(go.Histogram(x=df[target], name='Distribution'))
+            fig3.add_trace(go.Box(x=df[target], name='Box Plot', yaxis='y2'))
+            fig3.update_layout(
+                title=f'{target} Distribution',
+                yaxis2=dict(overlaying='y', side='right'),
+                template=plotly_template
+            )
+        else:
+            counts = df[target].value_counts()
+            fig3 = px.bar(
+                x=counts.index,
+                y=counts.values,
+                title=f'{target} Distribution'
+            )
+            fig3.update_layout(template=plotly_template)
+        target_plot = fig3.to_html(full_html=False)
+    else:
+        target_plot = ""
+    
+    return {
+        'types_and_missing': fig1.to_html(full_html=False),
+        'correlations': correlations_plot,
+        'target_distribution': target_plot
+    }
+
+def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """Analyze duplicate rows in the DataFrame"""
+    if df.duplicated().sum() == 0:
+        return []
+    
+    dup_counts = df.groupby(list(df.columns)).size()
+    dup_counts = dup_counts[dup_counts > 1].sort_values(ascending=False)
+    
+    return [
+        {'count': count, 'rows': ', '.join(map(str, df[df.duplicated(keep=False)].index[:5]))}
+        for count in dup_counts[:10]  # Show top 10 duplicate patterns
+    ]
 
 def profile(
     df: pd.DataFrame,
@@ -63,107 +244,38 @@ def profile(
         raise DataSizeError("DataFrame exceeds 1 million rows limit")
     if len(df.columns) > 1000:
         raise DataSizeError("DataFrame exceeds 1000 columns limit")
-
-    # Map theme to Plotly template
-    plotly_template = 'plotly_white' if theme == 'light' else 'plotly_dark'
-
-    # Create the main figure with subplots
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=('Data Types', 'Missing Values', 'Target Distribution', 'Correlations')
-    )
     
-    # Data Types plot
-    type_counts = df.dtypes.value_counts()
-    fig.add_trace(
-        go.Bar(x=type_counts.index.astype(str), y=type_counts.values, name='Data Types'),
-        row=1, col=1
-    )
+    # Calculate all statistics and generate plots
+    overview = _calculate_overview_stats(df)
+    variables = [_analyze_variable(df, col, target) for col in df.columns if col != target]
+    plots = _create_summary_plots(df, target, theme)
+    duplicates = _analyze_duplicates(df)
     
-    # Missing Values plot
-    missing = df.isnull().sum()
-    fig.add_trace(
-        go.Bar(x=missing.index, y=missing.values, name='Missing Values'),
-        row=1, col=2
-    )
-    
-    # Target Distribution plot (if target is specified)
+    # Target variable analysis if specified
+    target_analysis = None
     if target and target in df.columns:
-        if df[target].dtype in ['int64', 'float64']:
-            fig.add_trace(
-                go.Histogram(x=df[target], name='Target Distribution'),
-                row=2, col=1
-            )
-        else:
-            target_counts = df[target].value_counts()
-            fig.add_trace(
-                go.Bar(x=target_counts.index.astype(str), y=target_counts.values, name='Target Distribution'),
-                row=2, col=1
-            )
+        target_analysis = _analyze_variable(df, target)
     
-    # Correlations plot (for numeric columns)
-    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
-    if len(numeric_cols) > 1:
-        corr = df[numeric_cols].corr()
-        fig.add_trace(
-            go.Heatmap(z=corr, x=corr.columns, y=corr.columns, name='Correlations'),
-            row=2, col=2
-        )
-    
-    fig.update_layout(
-        height=800,
-        title_text=title,
-        showlegend=False,
-        template=plotly_template
-    )
-    
-    # Create HTML report
-    template = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>{{ title }}</title>
-        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 20px;
-                background-color: {{ 'white' if theme == 'light' else '#1a1a1a' }};
-                color: {{ 'black' if theme == 'light' else 'white' }};
-            }
-            .overview {
-                background-color: {{ '#f5f5f5' if theme == 'light' else '#2d2d2d' }};
-                padding: 20px;
-                border-radius: 5px;
-                margin-bottom: 20px;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>{{ title }}</h1>
-        <div class="overview">
-            <h2>Dataset Overview</h2>
-            <p>Rows: {{ rows }}</p>
-            <p>Columns: {{ cols }}</p>
-            <p>Memory Usage: {{ memory_usage }}</p>
-        </div>
-        {{ plot_div }}
-    </body>
-    </html>
-    """
-    
+    # Prepare template context
     context = {
         'title': title,
         'theme': theme,
-        'rows': len(df),
-        'cols': len(df.columns),
-        'memory_usage': f"{df.memory_usage(deep=True).sum() / 1024**2:.2f} MB",
-        'plot_div': fig.to_html(full_html=False)
+        'overview': overview,
+        'variables': variables,
+        'plots': plots,
+        'duplicates': duplicates,
+        'target': target_analysis
     }
     
-    html_report = jinja2.Template(template).render(**context)
+    # Load and render template
+    template_path = Path(__file__).parent / 'templates' / 'report_template.html.j2'
+    if not template_path.exists():
+        raise ProfilerError(f"Template file not found at {template_path}")
+    
+    with open(template_path, 'r', encoding='utf-8') as f:
+        template = jinja2.Template(f.read())
+    
+    html_report = template.render(**context)
     
     # Save the report
     output_path = Path(output_file)

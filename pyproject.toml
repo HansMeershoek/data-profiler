@@ -35,6 +35,11 @@ dependencies = [
     "IPython>=7.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/HansMeershoek/pytics"
+Repository = "https://github.com/HansMeershoek/pytics"
+Bug Tracker = "https://github.com/HansMeershoek/pytics/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",

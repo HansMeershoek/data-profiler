@@ -272,12 +272,7 @@ def profile(
     context = {
         'title': title,
         'theme': theme,
-        'overview': overview,
-        'variables': variables,
-        'plots': plots,
-        'duplicates': duplicates,
-        'target': target_analysis,
-        # Add required context variables for the template
+        # Flatten overview stats into the root context
         'n_vars': len(df.columns),
         'n_obs': len(df),
         'n_missing': df.isna().sum().sum(),
@@ -289,9 +284,35 @@ def profile(
         'n_boolean': len(df.select_dtypes(include=['bool']).columns),
         'n_date': len(df.select_dtypes(include=['datetime64']).columns),
         'n_text': len(df.select_dtypes(include=['string']).columns),
-        'correlation_plot': plots.get('correlation', ''),
-        'missing_plot': plots.get('missing', ''),
-        'duplicates_plot': plots.get('duplicates', '')
+        # Add overview stats
+        'overview': overview,
+        # Process variables to match template expectations
+        'variables': {
+            name: {
+                'type': var['type'],
+                'missing': var['missing_count'],
+                'missing_percent': var['missing_pct'],
+                'unique': var['distinct_count'],
+                'unique_percent': var['distinct_pct'],
+                'mean': var.get('mean', ''),
+                'std': var.get('std', ''),
+                'min': var.get('min', ''),
+                'q1': var.get('q1', ''),
+                'median': var.get('median', ''),
+                'q3': var.get('q3', ''),
+                'max': var.get('max', ''),
+                'plot': var.get('distribution_plot', '')
+            }
+            for name, var in variables.items()
+        },
+        # Add plots directly to root context
+        'correlation_plot': plots.get('correlations', ''),
+        'missing_plot': plots.get('types_and_missing', ''),
+        'duplicates_plot': plots.get('duplicates', ''),
+        # Add other context data
+        'plots': plots,
+        'duplicates': duplicates,
+        'target': target_analysis
     }
     
     # Load and render template

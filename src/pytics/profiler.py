@@ -12,6 +12,7 @@ from jinja2 import Environment, PackageLoader
 from xhtml2pdf import pisa
 import os
 import builtins
+from .visualizations import _convert_to_static_image
 
 # Initialize Jinja2 environment with PackageLoader
 env = Environment(loader=PackageLoader('pytics', 'templates'))

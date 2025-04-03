@@ -132,7 +132,11 @@
                 </table>
                 
                 <div class="plot-container">
-                    {{ var_data.plot }}
+                    {% if is_pdf_output %}
+                        <img src="{{ var_data.plot }}" alt="{{ var_name }} Distribution" class="static-plot">
+                    {% else %}
+                        {{ var_data.plot | safe }}
+                    {% endif %}
                 </div>
             </div>
         {% endfor %}
@@ -141,14 +145,22 @@
     <div id="correlations" class="section">
         <h2>Correlations</h2>
         <div class="plot-container">
-            {{ correlation_plot }}
+            {% if is_pdf_output %}
+                <img src="{{ correlation_plot }}" alt="Correlation Matrix" class="static-plot">
+            {% else %}
+                {{ correlation_plot | safe }}
+            {% endif %}
         </div>
     </div>
 
     <div id="missing" class="section">
         <h2>Missing Values</h2>
         <div class="plot-container">
-            {{ missing_plot }}
+            {% if is_pdf_output %}
+                <img src="{{ missing_plot }}" alt="Missing Values Pattern" class="static-plot">
+            {% else %}
+                {{ missing_plot | safe }}
+            {% endif %}
         </div>
     </div>
 

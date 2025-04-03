@@ -1,16 +1,40 @@
 """
 Visualization functions for data profiling and comparison
 """
-from typing import Dict, Any
+from typing import Dict, Any, Union, Tuple
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import plotly.io as pio
+import base64
+from io import BytesIO
+
+def _convert_to_static_image(fig: go.Figure, format: str = 'png') -> str:
+    """
+    Convert a Plotly figure to a static image and return as base64 string.
+    
+    Parameters
+    ----------
+    fig : go.Figure
+        The Plotly figure to convert
+    format : str, default 'png'
+        The image format to use
+        
+    Returns
+    -------
+    str
+        Base64 encoded image string with data URI prefix
+    """
+    img_bytes = pio.to_image(fig, format=format, engine='kaleido')
+    base64_image = base64.b64encode(img_bytes).decode('utf-8')
+    return f"data:image/{format};base64,{base64_image}"
 
 def create_distribution_comparison_plot(
     distribution_data: Dict[str, Any],
     name1: str = "DataFrame 1",
     name2: str = "DataFrame 2",
-    theme: str = "light"
-) -> str:
+    theme: str = "light",
+    return_static: bool = False
+) -> Union[str, Tuple[str, go.Figure]]:
     """
     Create a comparison plot for distributions using Plotly.
     
@@ -24,11 +48,14 @@ def create_distribution_comparison_plot(
         Name of the second DataFrame
     theme : str, default "light"
         Theme for the plot ('light' or 'dark')
+    return_static : bool, default False
+        If True, return a base64 encoded static image instead of interactive HTML
         
     Returns
     -------
-    str
-        HTML representation of the plot
+    Union[str, Tuple[str, go.Figure]]
+        If return_static is True: base64 encoded image string
+        If return_static is False: tuple of (HTML string, Figure object)
     """
     if distribution_data['type'] == 'numeric':
         # Create figure with secondary y-axis
@@ -88,6 +115,11 @@ def create_distribution_comparison_plot(
                 x=1
             )
         )
+        
+        if return_static:
+            return _convert_to_static_image(fig)
+        else:
+            return fig.to_html(full_html=False, include_plotlyjs='cdn'), fig
     else:
         # For categorical data
         # Get all unique categories from both DataFrames
@@ -129,5 +161,8 @@ def create_distribution_comparison_plot(
             ),
             barmode='group'
         )
-    
-    return fig.to_html(full_html=False, include_plotlyjs=False) 
+        
+        if return_static:
+            return _convert_to_static_image(fig)
+        else:
+            return fig.to_html(full_html=False, include_plotlyjs='cdn'), fig 

@@ -108,7 +108,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
     
     return var_stats
 
-def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme: str = 'light') -> Dict[str, str]:
+def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme: str = 'light', return_static: bool = False) -> Dict[str, str]:
     """Create summary plots for the report"""
     plotly_template = 'plotly_white' if theme == 'light' else 'plotly_dark'
     
@@ -186,11 +186,18 @@ def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme:
     else:
         target_plot = ""
     
-    return {
-        'types_and_missing': fig1.to_html(full_html=False),
-        'correlations': correlations_plot,
-        'target_distribution': target_plot
-    }
+    if return_static:
+        return {
+            'types_and_missing': fig1.to_html(full_html=False),
+            'correlations': correlations_plot,
+            'target_distribution': target_plot
+        }
+    else:
+        return {
+            'types_and_missing': fig1.to_html(full_html=False),
+            'correlations': correlations_plot,
+            'target_distribution': target_plot
+        }
 
 def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """Analyze duplicate rows in the DataFrame"""
@@ -260,18 +267,29 @@ def profile(
     variables_list = [_analyze_variable(df, col, target) for col in df.columns if col != target]
     # Convert variables list to dictionary with column names as keys
     variables = {var['name']: var for var in variables_list}
-    plots = _create_summary_plots(df, target, theme)
+    
+    # Determine if we need static images for PDF output
+    is_pdf_output = output_format == 'pdf' or output_file.lower().endswith('.pdf')
+    
+    # Generate plots with appropriate format
+    plots = _create_summary_plots(df, target, theme, return_static=is_pdf_output)
     duplicates = _analyze_duplicates(df)
     
     # Target variable analysis if specified
     target_analysis = None
     if target and target in df.columns:
         target_analysis = _analyze_variable(df, target)
+        if target_analysis.get('distribution_plot'):
+            if is_pdf_output:
+                target_analysis['plot'] = _convert_to_static_image(target_analysis['distribution_plot'])
+            else:
+                target_analysis['plot'] = target_analysis['distribution_plot'].to_html(full_html=False, include_plotlyjs='cdn')
     
     # Prepare template context
     context = {
         'title': title,
         'theme': theme,
+        'is_pdf_output': is_pdf_output,
         # Flatten overview stats into the root context
         'n_vars': len(df.columns),
         'n_obs': len(df),

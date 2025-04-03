@@ -42,8 +42,26 @@ def _calculate_overview_stats(df: pd.DataFrame) -> Dict[str, Any]:
         'avg_record_size': f"{df.memory_usage(deep=True).sum() / len(df) / 1024:.2f} KB"
     }
 
-def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = None) -> Dict[str, Any]:
-    """Analyze a single variable/column"""
+def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = None, return_static: bool = False) -> Dict[str, Any]:
+    """
+    Analyze a single variable/column
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame to analyze
+    column : str
+        The column name to analyze
+    target : str, optional
+        Name of the target variable for supervised learning tasks
+    return_static : bool, default False
+        If True, return static images instead of interactive plots
+        
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing analysis results
+    """
     series = df[column]
     total_count = len(series)
     missing_count = series.isna().sum()
@@ -79,7 +97,11 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
             title=f"{column} Distribution",
             yaxis2=dict(overlaying='y', side='right')
         )
-        var_stats['distribution_plot'] = fig.to_html(full_html=False)
+        
+        if return_static:
+            var_stats['distribution_plot'] = _convert_to_static_image(fig)
+        else:
+            var_stats['distribution_plot'] = fig
         
         # Target relationship plot if target exists
         if target and target in df.columns:
@@ -87,7 +109,11 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
                 fig = px.scatter(df, x=column, y=target, title=f"{column} vs {target}")
             else:
                 fig = px.box(df, x=column, y=target, title=f"{column} by {target}")
-            var_stats['target_plot'] = fig.to_html(full_html=False)
+            
+            if return_static:
+                var_stats['target_plot'] = _convert_to_static_image(fig)
+            else:
+                var_stats['target_plot'] = fig
     else:
         # For categorical variables
         value_counts = series.value_counts()
@@ -99,12 +125,20 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
             y=value_counts.values[:20],
             title=f"{column} Distribution (Top 20 Categories)"
         )
-        var_stats['distribution_plot'] = fig.to_html(full_html=False)
+        
+        if return_static:
+            var_stats['distribution_plot'] = _convert_to_static_image(fig)
+        else:
+            var_stats['distribution_plot'] = fig
         
         # Target relationship plot if target exists
         if target and target in df.columns and df[target].dtype in ['int64', 'float64']:
             fig = px.box(df, x=column, y=target, title=f"{target} by {column}")
-            var_stats['target_plot'] = fig.to_html(full_html=False)
+            
+            if return_static:
+                var_stats['target_plot'] = _convert_to_static_image(fig)
+            else:
+                var_stats['target_plot'] = fig
     
     return var_stats
 
@@ -262,14 +296,14 @@ def profile(
     if len(df.columns) > 1000:
         raise DataSizeError("DataFrame exceeds 1000 columns limit")
     
-    # Calculate all statistics and generate plots
-    overview = _calculate_overview_stats(df)
-    variables_list = [_analyze_variable(df, col, target) for col in df.columns if col != target]
-    # Convert variables list to dictionary with column names as keys
-    variables = {var['name']: var for var in variables_list}
-    
     # Determine if we need static images for PDF output
     is_pdf_output = output_format == 'pdf' or output_file.lower().endswith('.pdf')
+    
+    # Calculate all statistics and generate plots
+    overview = _calculate_overview_stats(df)
+    variables_list = [_analyze_variable(df, col, target, return_static=is_pdf_output) for col in df.columns if col != target]
+    # Convert variables list to dictionary with column names as keys
+    variables = {var['name']: var for var in variables_list}
     
     # Generate plots with appropriate format
     plots = _create_summary_plots(df, target, theme, return_static=is_pdf_output)
@@ -278,12 +312,20 @@ def profile(
     # Target variable analysis if specified
     target_analysis = None
     if target and target in df.columns:
-        target_analysis = _analyze_variable(df, target)
+        target_analysis = _analyze_variable(df, target, return_static=is_pdf_output)
         if target_analysis.get('distribution_plot'):
             if is_pdf_output:
-                target_analysis['plot'] = _convert_to_static_image(target_analysis['distribution_plot'])
+                target_analysis['plot'] = target_analysis['distribution_plot']
             else:
                 target_analysis['plot'] = target_analysis['distribution_plot'].to_html(full_html=False, include_plotlyjs='cdn')
+    
+    # Process variables for template
+    for var in variables.values():
+        if var.get('distribution_plot'):
+            if is_pdf_output:
+                var['plot'] = var['distribution_plot']
+            else:
+                var['plot'] = var['distribution_plot'].to_html(full_html=False, include_plotlyjs='cdn')
     
     # Prepare template context
     context = {

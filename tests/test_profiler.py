@@ -7,6 +7,7 @@ import numpy as np
 from pytics import profile
 from pytics.profiler import DataSizeError, ProfilerError, compare
 from pathlib import Path
+from jinja2 import Environment, PackageLoader
 
 @pytest.fixture
 def sample_df():
@@ -329,3 +330,42 @@ def test_compare_report_no_output():
     assert 'report_path' not in results
     assert 'variable_comparison' in results
     assert 'numeric' in results['variable_comparison'] 
+
+def test_template_loading():
+    """Test that templates can be loaded correctly"""
+    env = Environment(loader=PackageLoader('pytics', 'templates'))
+    
+    # Test loading all templates
+    templates = ['report_template.html.j2', 'compare_report_template.html.j2', 'base_template.html.j2']
+    for template_name in templates:
+        template = env.get_template(template_name)
+        assert template is not None
+
+def test_compare_report_context(sample_df):
+    """Test that compare report has all required context variables"""
+    from pytics.profiler import compare
+    
+    # Create a second DataFrame with some differences
+    df2 = sample_df.copy()
+    df2['new_column'] = range(len(df2))
+    
+    # Generate comparison report
+    results = compare(sample_df, df2, output_file=None)
+    
+    # Check required context variables
+    required_vars = [
+        'columns_only_in_df1',
+        'columns_only_in_df2',
+        'common_columns',
+        'dtype_differences',
+        'variable_comparison',
+        'df1',
+        'df2'
+    ]
+    
+    for var in required_vars:
+        assert var in results, f"Missing required context variable: {var}"
+    
+    # Verify DataFrame references
+    assert results['df1'] is sample_df
+    assert results['df2'] is df2 

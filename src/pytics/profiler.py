@@ -8,9 +8,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from pathlib import Path
-import jinja2
+from jinja2 import Environment, PackageLoader
 from xhtml2pdf import pisa
 import os
+
+# Initialize Jinja2 environment with PackageLoader
+env = Environment(loader=PackageLoader('pytics', 'templates'))
 
 class ProfilerError(Exception):
     """Base exception for data profiler errors"""
@@ -268,13 +271,7 @@ def profile(
     }
     
     # Load and render template
-    template_path = Path(__file__).parent / 'templates' / 'report_template.html.j2'
-    if not template_path.exists():
-        raise ProfilerError(f"Template file not found at {template_path}")
-    
-    with open(template_path, 'r', encoding='utf-8') as f:
-        template = jinja2.Template(f.read())
-    
+    template = env.get_template('report_template.html.j2')
     html_report = template.render(**context)
     
     # Save the report
@@ -463,13 +460,13 @@ def compare(
         'columns_only_in_df2': columns_only_in_df2,
         'common_columns': common_columns,
         'dtype_differences': dtype_differences,
-        'variable_comparison': variable_comparison
+        'variable_comparison': variable_comparison,
+        'df1': df1,  # Add DataFrame references to context
+        'df2': df2
     }
 
     if output_file:
         # Load and render the template
-        template_dir = Path(__file__).parent / 'templates'
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir))
         template = env.get_template('compare_report_template.html.j2')
         
         html_content = template.render(

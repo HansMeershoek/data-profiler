@@ -253,3 +253,79 @@ def test_compare_with_custom_bins():
     assert len(dist_data['histogram']['bins']) == 21  # n_bins + 1
     assert len(dist_data['histogram']['df1_counts']) == 20
     assert len(dist_data['histogram']['df2_counts']) == 20 
+
+def test_compare_report_generation(tmp_path):
+    """Test that the compare function generates an HTML report when output_file is specified."""
+    # Create sample DataFrames
+    df1 = pd.DataFrame({
+        'numeric': [1, 2, 3, 4, 5],
+        'categorical': ['A', 'B', 'A', 'C', 'B'],
+        'only_df1': [1, 2, 3, 4, 5]
+    })
+    
+    df2 = pd.DataFrame({
+        'numeric': [2, 3, 4, 5, 6],
+        'categorical': ['B', 'B', 'A', 'C', 'A'],
+        'only_df2': [6, 7, 8, 9, 10]
+    })
+    
+    # Generate report
+    output_file = tmp_path / "comparison_report.html"
+    results = compare(
+        df1, 
+        df2, 
+        name1="First DF",
+        name2="Second DF",
+        output_file=str(output_file)
+    )
+    
+    # Check that the report was generated
+    assert output_file.exists()
+    assert 'report_path' in results
+    assert results['report_path'] == str(output_file)
+    
+    # Read the report content
+    with open(output_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Check that key elements are present in the report
+    assert "First DF" in content
+    assert "Second DF" in content
+    assert "numeric" in content
+    assert "categorical" in content
+    assert "only_df1" in content
+    assert "only_df2" in content
+    assert "Distribution Comparison" in content
+
+def test_compare_report_themes(tmp_path):
+    """Test that the compare function handles different themes correctly."""
+    df1 = pd.DataFrame({'numeric': [1, 2, 3]})
+    df2 = pd.DataFrame({'numeric': [2, 3, 4]})
+    
+    # Test light theme
+    light_output = tmp_path / "light_theme.html"
+    compare(df1, df2, output_file=str(light_output), theme="light")
+    
+    with open(light_output, 'r', encoding='utf-8') as f:
+        light_content = f.read()
+    
+    assert 'theme="light"' in light_content
+    
+    # Test dark theme
+    dark_output = tmp_path / "dark_theme.html"
+    compare(df1, df2, output_file=str(dark_output), theme="dark")
+    
+    with open(dark_output, 'r', encoding='utf-8') as f:
+        dark_content = f.read()
+    
+    assert 'theme="dark"' in dark_content
+
+def test_compare_report_no_output():
+    """Test that compare function works correctly when no output file is specified."""
+    df1 = pd.DataFrame({'numeric': [1, 2, 3]})
+    df2 = pd.DataFrame({'numeric': [2, 3, 4]})
+    
+    results = compare(df1, df2)
+    assert 'report_path' not in results
+    assert 'variable_comparison' in results
+    assert 'numeric' in results['variable_comparison'] 

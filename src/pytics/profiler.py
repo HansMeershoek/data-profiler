@@ -299,7 +299,8 @@ def compare(
     name1: str = "DataFrame 1",
     name2: str = "DataFrame 2",
     output_file: Optional[str] = None,
-    n_bins: int = 30  # New parameter for controlling histogram bins
+    n_bins: int = 30,
+    theme: str = "light"
 ) -> Dict[str, Any]:
     """
     Compare two pandas DataFrames and analyze their differences.
@@ -315,21 +316,16 @@ def compare(
     name2 : str, default "DataFrame 2"
         Name to identify the second DataFrame in the comparison
     output_file : str, optional
-        Path to save the comparison report (not implemented yet)
+        Path to save the comparison report
     n_bins : int, default 30
         Number of bins to use for numeric column histograms
+    theme : str, default "light"
+        Theme for the report ('light' or 'dark')
 
     Returns
     -------
     Dict[str, Any]
-        Dictionary containing comparison results:
-        - columns_only_in_df1: List of columns present only in df1
-        - columns_only_in_df2: List of columns present only in df2
-        - common_columns: List of columns present in both DataFrames
-        - dtype_differences: Dict mapping column names to tuple of (df1_dtype, df2_dtype)
-          for columns with different dtypes
-        - variable_comparison: Dict containing detailed statistical comparison and
-          distribution data for each common column
+        Dictionary containing comparison results and report path if generated
     """
     # Get column sets
     cols1 = set(df1.columns)
@@ -350,6 +346,7 @@ def compare(
 
     # Statistical comparison and distribution data for common columns
     variable_comparison = {}
+    plots = {}
     for col in common_columns:
         series1 = df1[col]
         series2 = df2[col]
@@ -442,8 +439,8 @@ def compare(
             distribution_data = {
                 'type': 'categorical',
                 'value_counts': {
-                    'df1': value_counts1.to_dict(),
-                    'df2': value_counts2.to_dict()
+                    'df1': {str(k): int(v) for k, v in value_counts1.items()},
+                    'df2': {str(k): int(v) for k, v in value_counts2.items()}
                 }
             }
         
@@ -451,11 +448,42 @@ def compare(
             'stats': stats,
             'distribution_data': distribution_data
         }
+        
+        # Generate plot for this column
+        from .visualizations import create_distribution_comparison_plot
+        plots[col] = create_distribution_comparison_plot(
+            distribution_data,
+            name1=name1,
+            name2=name2,
+            theme=theme
+        )
 
-    return {
+    results = {
         'columns_only_in_df1': columns_only_in_df1,
         'columns_only_in_df2': columns_only_in_df2,
         'common_columns': common_columns,
         'dtype_differences': dtype_differences,
         'variable_comparison': variable_comparison
-    } 
+    }
+
+    if output_file:
+        # Load and render the template
+        template_dir = Path(__file__).parent / 'templates'
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir))
+        template = env.get_template('compare_report_template.html.j2')
+        
+        html_content = template.render(
+            name1=name1,
+            name2=name2,
+            theme=theme,
+            plots=plots,
+            **results
+        )
+        
+        # Save the report
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        results['report_path'] = output_file
+
+    return results 

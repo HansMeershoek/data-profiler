@@ -16,6 +16,7 @@ An interactive data profiling library for Python that generates comprehensive HT
 - 🔍 **Comprehensive Profiling**: Detailed statistics and distributions
 - ⚡ **Performance Optimized**: Efficient handling of large datasets
 - 🛠️ **Customizable**: Configure sections and visualization options
+- ↔️ **DataFrame Comparison**: Compare two datasets for differences in schema, stats, and distributions
 
 ## Example Reports
 
@@ -35,7 +36,7 @@ pip install pytics
 
 ```python
 import pandas as pd
-from pytics import profile
+from pytics import profile, compare
 
 # Load your dataset
 df = pd.read_csv('your_data.csv')
@@ -54,6 +55,20 @@ profile(
     df,
     include_sections=['overview', 'correlations'],
     output_file='report.html'
+)
+
+# --- Comparing Two DataFrames ---
+# Load your datasets for comparison
+df_train = pd.read_csv('train_data.csv')
+df_test = pd.read_csv('test_data.csv')
+
+# Generate a comparison report
+compare_report = compare(
+    df_train, 
+    df_test, 
+    name1='Train Set',    # Optional: Custom names for the datasets
+    name2='Test Set',
+    output_file='comparison.html'
 )
 ```
 
@@ -84,6 +99,7 @@ profile(
 ## Configuration Options
 
 ```python
+# Profile configuration
 profile(
     df,
     target='target_column',           # Target variable for supervised learning
@@ -93,6 +109,16 @@ profile(
     output_file='report.html',       # Output file path
     theme='light',                   # Report theme
     title='Custom Report Title'      # Report title
+)
+
+# Compare configuration
+compare(
+    df1,
+    df2,
+    name1='First Dataset',           # Custom name for first dataset
+    name2='Second Dataset',          # Custom name for second dataset
+    output_file='comparison.html',   # Output file path
+    theme='light'                    # Report theme
 )
 ```
 

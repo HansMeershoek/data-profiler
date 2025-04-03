@@ -214,7 +214,7 @@ def profile(
     exclude_sections: Optional[List[str]] = None,
     theme: Literal['light', 'dark'] = 'light',
     title: str = "Data Profile Report"
-) -> Dict[str, Any]:
+) -> Optional[str]:
     """
     Generate a profile report for the given DataFrame.
     
@@ -239,8 +239,8 @@ def profile(
         
     Returns
     -------
-    Dict[str, Any]
-        Dictionary containing all calculated statistics and plots
+    Optional[str]
+        Path to the generated report file if output_file is provided, None otherwise
         
     Raises
     ------
@@ -294,8 +294,31 @@ def profile(
         'duplicates_plot': plots.get('duplicates', '')
     }
     
-    # Return the context dictionary directly for debugging
-    return context
+    # Load and render template
+    template = env.get_template('report_template.html.j2')
+    html_report = template.render(**context)
+    
+    # If no output file is specified, return the HTML for display in notebooks
+    if not output_file:
+        return html_report
+    
+    # Save the report
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    if output_format == 'html' or output_path.suffix.lower() == '.html':
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(html_report)
+    else:  # pdf
+        pdf_path = output_path.with_suffix('.pdf')
+        result_file = open(pdf_path, "w+b")
+        pisa_status = pisa.CreatePDF(html_report, dest=result_file)
+        result_file.close()
+        
+        if pisa_status.err:
+            raise ProfilerError("Error generating PDF report")
+    
+    return output_file
 
 def compare(
     df1: pd.DataFrame,

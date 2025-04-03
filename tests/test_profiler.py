@@ -121,3 +121,66 @@ def test_compare_with_custom_names():
     assert result['columns_only_in_df2'] == ['c']
     assert result['common_columns'] == ['b']
     assert not result['dtype_differences']  # No dtype differences for 'b' 
+
+def test_compare_numeric_stats(sample_df, sample_df2):
+    """Test statistical comparison of numeric columns"""
+    result = compare(sample_df, sample_df2)
+    
+    # Check numeric column comparison
+    numeric_stats = result['variable_comparison']['numeric']['stats']
+    
+    # Verify all required statistics are present
+    assert set(numeric_stats.keys()) >= {
+        'count', 'missing_count', 'missing_percent',
+        'unique_count', 'unique_percent',
+        'mean', 'std', 'min', 'q1', 'median', 'q3', 'max'
+    }
+    
+    # Verify structure of numeric statistics
+    for stat in ['mean', 'std', 'min', 'q1', 'median', 'q3', 'max']:
+        assert 'df1' in numeric_stats[stat]
+        assert 'df2' in numeric_stats[stat]
+        # Verify values are formatted as strings with 2 decimal places
+        assert '.' in numeric_stats[stat]['df1']
+        assert len(numeric_stats[stat]['df1'].split('.')[-1]) == 2
+
+def test_compare_categorical_stats(sample_df, sample_df2):
+    """Test statistical comparison of categorical columns"""
+    result = compare(sample_df, sample_df2)
+    
+    # Check categorical column comparison
+    cat_stats = result['variable_comparison']['categorical']['stats']
+    
+    # Verify basic statistics are present
+    assert set(cat_stats.keys()) >= {
+        'count', 'missing_count', 'missing_percent',
+        'unique_count', 'unique_percent',
+        'top_values_df1', 'top_values_df2'
+    }
+    
+    # Verify structure of top values
+    for df_key in ['top_values_df1', 'top_values_df2']:
+        assert len(cat_stats[df_key]) <= 5  # Should have at most 5 top values
+        for value_info in cat_stats[df_key]:
+            assert set(value_info.keys()) == {'value', 'count', 'percentage'}
+            assert isinstance(value_info['value'], str)
+            assert isinstance(value_info['count'], (int, np.int64))
+            assert isinstance(value_info['percentage'], str)
+            assert float(value_info['percentage'].rstrip('%')) <= 100
+
+def test_compare_missing_values(sample_df):
+    """Test comparison of columns with missing values"""
+    # Create a modified version with different missing value patterns
+    df_modified = sample_df.copy()
+    df_modified.loc[0:10, 'missing'] = np.nan  # Different missing pattern
+    
+    result = compare(sample_df, df_modified)
+    missing_stats = result['variable_comparison']['missing']['stats']
+    
+    # Verify missing value statistics
+    assert missing_stats['missing_count']['df1'] != missing_stats['missing_count']['df2']
+    assert float(missing_stats['missing_percent']['df1']) != float(missing_stats['missing_percent']['df2'])
+    
+    # Verify counts match the actual data
+    assert missing_stats['missing_count']['df1'] == sample_df['missing'].isna().sum()
+    assert missing_stats['missing_count']['df2'] == df_modified['missing'].isna().sum() 

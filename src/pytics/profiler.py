@@ -301,7 +301,7 @@ def compare(
     output_file: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Compare two pandas DataFrames and analyze their differences, starting with schema comparison.
+    Compare two pandas DataFrames and analyze their differences.
 
     Parameters
     ----------
@@ -319,12 +319,13 @@ def compare(
     Returns
     -------
     Dict[str, Any]
-        Dictionary containing schema comparison results:
+        Dictionary containing comparison results:
         - columns_only_in_df1: List of columns present only in df1
         - columns_only_in_df2: List of columns present only in df2
         - common_columns: List of columns present in both DataFrames
         - dtype_differences: Dict mapping column names to tuple of (df1_dtype, df2_dtype)
           for columns with different dtypes
+        - variable_comparison: Dict containing detailed statistical comparison for each common column
     """
     # Get column sets
     cols1 = set(df1.columns)
@@ -343,9 +344,71 @@ def compare(
         if dtype1 != dtype2:
             dtype_differences[col] = (dtype1, dtype2)
 
+    # Statistical comparison for common columns
+    variable_comparison = {}
+    for col in common_columns:
+        series1 = df1[col]
+        series2 = df2[col]
+        
+        # Common statistics for all types
+        total_count1 = len(series1)
+        total_count2 = len(series2)
+        missing_count1 = series1.isna().sum()
+        missing_count2 = series2.isna().sum()
+        unique_count1 = series1.nunique()
+        unique_count2 = series2.nunique()
+        
+        stats = {
+            'count': {'df1': total_count1, 'df2': total_count2},
+            'missing_count': {'df1': missing_count1, 'df2': missing_count2},
+            'missing_percent': {
+                'df1': f"{(missing_count1 / total_count1) * 100:.2f}",
+                'df2': f"{(missing_count2 / total_count2) * 100:.2f}"
+            },
+            'unique_count': {'df1': unique_count1, 'df2': unique_count2},
+            'unique_percent': {
+                'df1': f"{(unique_count1 / total_count1) * 100:.2f}",
+                'df2': f"{(unique_count2 / total_count2) * 100:.2f}"
+            }
+        }
+        
+        # Type-specific statistics
+        if str(series1.dtype) in ['int64', 'float64'] and str(series2.dtype) in ['int64', 'float64']:
+            # Numeric statistics
+            desc1 = series1.describe()
+            desc2 = series2.describe()
+            
+            stats.update({
+                'mean': {'df1': f"{desc1['mean']:.2f}", 'df2': f"{desc2['mean']:.2f}"},
+                'std': {'df1': f"{desc1['std']:.2f}", 'df2': f"{desc2['std']:.2f}"},
+                'min': {'df1': f"{desc1['min']:.2f}", 'df2': f"{desc2['min']:.2f}"},
+                'q1': {'df1': f"{desc1['25%']:.2f}", 'df2': f"{desc2['25%']:.2f}"},
+                'median': {'df1': f"{desc1['50%']:.2f}", 'df2': f"{desc2['50%']:.2f}"},
+                'q3': {'df1': f"{desc1['75%']:.2f}", 'df2': f"{desc2['75%']:.2f}"},
+                'max': {'df1': f"{desc1['max']:.2f}", 'df2': f"{desc2['max']:.2f}"}
+            })
+        else:
+            # Categorical statistics
+            value_counts1 = series1.value_counts().head(5)
+            value_counts2 = series2.value_counts().head(5)
+            
+            stats.update({
+                'top_values_df1': [
+                    {'value': str(value), 'count': count, 'percentage': f"{(count / total_count1) * 100:.2f}"}
+                    for value, count in value_counts1.items()
+                ],
+                'top_values_df2': [
+                    {'value': str(value), 'count': count, 'percentage': f"{(count / total_count2) * 100:.2f}"}
+                    for value, count in value_counts2.items()
+                ]
+            })
+        
+        variable_comparison[col] = {'stats': stats}
+
     return {
         'columns_only_in_df1': columns_only_in_df1,
         'columns_only_in_df2': columns_only_in_df2,
         'common_columns': common_columns,
-        'dtype_differences': dtype_differences
+        'dtype_differences': dtype_differences,
+        'variable_comparison': variable_comparison
     } 

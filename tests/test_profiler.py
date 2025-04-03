@@ -183,4 +183,73 @@ def test_compare_missing_values(sample_df):
     
     # Verify counts match the actual data
     assert missing_stats['missing_count']['df1'] == sample_df['missing'].isna().sum()
-    assert missing_stats['missing_count']['df2'] == df_modified['missing'].isna().sum() 
+    assert missing_stats['missing_count']['df2'] == df_modified['missing'].isna().sum()
+
+def test_compare_numeric_distribution(sample_df, sample_df2):
+    """Test distribution data generation for numeric columns"""
+    result = compare(sample_df, sample_df2)
+    
+    # Check numeric column distribution data
+    dist_data = result['variable_comparison']['numeric']['distribution_data']
+    
+    # Verify structure
+    assert dist_data['type'] == 'numeric'
+    assert 'histogram' in dist_data
+    assert 'kde' in dist_data
+    
+    # Check histogram data
+    hist = dist_data['histogram']
+    assert len(hist['bins']) == 31  # n_bins + 1 for edges
+    assert len(hist['df1_counts']) == 30  # n_bins
+    assert len(hist['df2_counts']) == 30
+    assert all(isinstance(x, (int, float)) for x in hist['bins'])
+    assert all(isinstance(x, (int, float)) for x in hist['df1_counts'])
+    assert all(isinstance(x, (int, float)) for x in hist['df2_counts'])
+    
+    # Check KDE data
+    kde = dist_data['kde']
+    assert 'df1' in kde and 'df2' in kde
+    for df_key in ['df1', 'df2']:
+        assert 'x' in kde[df_key] and 'y' in kde[df_key]
+        assert len(kde[df_key]['x']) == len(kde[df_key]['y'])
+        assert len(kde[df_key]['x']) == 100  # Default points for KDE
+        assert all(isinstance(x, (int, float)) for x in kde[df_key]['x'])
+        assert all(isinstance(x, (int, float)) for x in kde[df_key]['y'])
+
+def test_compare_categorical_distribution(sample_df, sample_df2):
+    """Test distribution data generation for categorical columns"""
+    result = compare(sample_df, sample_df2)
+    
+    # Check categorical column distribution data
+    dist_data = result['variable_comparison']['categorical']['distribution_data']
+    
+    # Verify structure
+    assert dist_data['type'] == 'categorical'
+    assert 'value_counts' in dist_data
+    assert 'df1' in dist_data['value_counts']
+    assert 'df2' in dist_data['value_counts']
+    
+    # Check value counts
+    vc1 = dist_data['value_counts']['df1']
+    vc2 = dist_data['value_counts']['df2']
+    
+    # Verify df1 has expected categories
+    assert set(vc1.keys()) == {'A', 'B', 'C'}
+    assert sum(vc1.values()) == len(sample_df)  # Total counts should match DataFrame length
+    
+    # Verify df2 has expected categories
+    assert set(vc2.keys()) == {'X', 'Y', 'Z'}
+    assert sum(vc2.values()) == len(sample_df2)
+
+def test_compare_with_custom_bins():
+    """Test numeric distribution generation with custom bin count"""
+    df1 = pd.DataFrame({'numeric': range(100)})
+    df2 = pd.DataFrame({'numeric': range(50, 150)})
+    
+    result = compare(df1, df2, n_bins=20)
+    dist_data = result['variable_comparison']['numeric']['distribution_data']
+    
+    # Verify custom bin count
+    assert len(dist_data['histogram']['bins']) == 21  # n_bins + 1
+    assert len(dist_data['histogram']['df1_counts']) == 20
+    assert len(dist_data['histogram']['df2_counts']) == 20 

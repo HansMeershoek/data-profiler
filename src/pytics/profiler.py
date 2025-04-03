@@ -298,7 +298,8 @@ def compare(
     df2: pd.DataFrame,
     name1: str = "DataFrame 1",
     name2: str = "DataFrame 2",
-    output_file: Optional[str] = None
+    output_file: Optional[str] = None,
+    n_bins: int = 30  # New parameter for controlling histogram bins
 ) -> Dict[str, Any]:
     """
     Compare two pandas DataFrames and analyze their differences.
@@ -315,6 +316,8 @@ def compare(
         Name to identify the second DataFrame in the comparison
     output_file : str, optional
         Path to save the comparison report (not implemented yet)
+    n_bins : int, default 30
+        Number of bins to use for numeric column histograms
 
     Returns
     -------
@@ -325,7 +328,8 @@ def compare(
         - common_columns: List of columns present in both DataFrames
         - dtype_differences: Dict mapping column names to tuple of (df1_dtype, df2_dtype)
           for columns with different dtypes
-        - variable_comparison: Dict containing detailed statistical comparison for each common column
+        - variable_comparison: Dict containing detailed statistical comparison and
+          distribution data for each common column
     """
     # Get column sets
     cols1 = set(df1.columns)
@@ -344,7 +348,7 @@ def compare(
         if dtype1 != dtype2:
             dtype_differences[col] = (dtype1, dtype2)
 
-    # Statistical comparison for common columns
+    # Statistical comparison and distribution data for common columns
     variable_comparison = {}
     for col in common_columns:
         series1 = df1[col]
@@ -372,7 +376,7 @@ def compare(
             }
         }
         
-        # Type-specific statistics
+        # Type-specific statistics and distribution data
         if str(series1.dtype) in ['int64', 'float64'] and str(series2.dtype) in ['int64', 'float64']:
             # Numeric statistics
             desc1 = series1.describe()
@@ -387,23 +391,66 @@ def compare(
                 'q3': {'df1': f"{desc1['75%']:.2f}", 'df2': f"{desc2['75%']:.2f}"},
                 'max': {'df1': f"{desc1['max']:.2f}", 'df2': f"{desc2['max']:.2f}"}
             })
+            
+            # Calculate histogram data
+            # Use the same bins for both series to make them comparable
+            min_val = min(series1.min(), series2.min())
+            max_val = max(series1.max(), series2.max())
+            bins = np.linspace(min_val, max_val, n_bins + 1)
+            
+            hist1, _ = np.histogram(series1.dropna(), bins=bins)
+            hist2, _ = np.histogram(series2.dropna(), bins=bins)
+            
+            # Calculate KDE points
+            kde1 = series1.dropna().plot.kde(ind=100)
+            x1, y1 = kde1.get_lines()[0].get_data()
+            kde1.clear()
+            
+            kde2 = series2.dropna().plot.kde(ind=100)
+            x2, y2 = kde2.get_lines()[0].get_data()
+            kde2.clear()
+            
+            distribution_data = {
+                'type': 'numeric',
+                'histogram': {
+                    'bins': bins.tolist(),
+                    'df1_counts': hist1.tolist(),
+                    'df2_counts': hist2.tolist()
+                },
+                'kde': {
+                    'df1': {'x': x1.tolist(), 'y': y1.tolist()},
+                    'df2': {'x': x2.tolist(), 'y': y2.tolist()}
+                }
+            }
         else:
             # Categorical statistics
-            value_counts1 = series1.value_counts().head(5)
-            value_counts2 = series2.value_counts().head(5)
+            value_counts1 = series1.value_counts()
+            value_counts2 = series2.value_counts()
             
             stats.update({
                 'top_values_df1': [
                     {'value': str(value), 'count': count, 'percentage': f"{(count / total_count1) * 100:.2f}"}
-                    for value, count in value_counts1.items()
+                    for value, count in value_counts1.head(5).items()
                 ],
                 'top_values_df2': [
                     {'value': str(value), 'count': count, 'percentage': f"{(count / total_count2) * 100:.2f}"}
-                    for value, count in value_counts2.items()
+                    for value, count in value_counts2.head(5).items()
                 ]
             })
+            
+            # Store full value counts for distribution visualization
+            distribution_data = {
+                'type': 'categorical',
+                'value_counts': {
+                    'df1': value_counts1.to_dict(),
+                    'df2': value_counts2.to_dict()
+                }
+            }
         
-        variable_comparison[col] = {'stats': stats}
+        variable_comparison[col] = {
+            'stats': stats,
+            'distribution_data': distribution_data
+        }
 
     return {
         'columns_only_in_df1': columns_only_in_df1,

@@ -102,7 +102,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
         if return_static:
             var_stats['distribution_plot'] = _convert_to_static_image(fig)
         else:
-            var_stats['distribution_plot'] = fig
+            var_stats['distribution_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
         
         # Target relationship plot if target exists
         if target and target in df.columns:
@@ -114,7 +114,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
             if return_static:
                 var_stats['target_plot'] = _convert_to_static_image(fig)
             else:
-                var_stats['target_plot'] = fig
+                var_stats['target_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
     else:
         # For categorical variables
         value_counts = series.value_counts()
@@ -130,7 +130,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
         if return_static:
             var_stats['distribution_plot'] = _convert_to_static_image(fig)
         else:
-            var_stats['distribution_plot'] = fig
+            var_stats['distribution_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
         
         # Target relationship plot if target exists
         if target and target in df.columns and df[target].dtype in ['int64', 'float64']:
@@ -139,64 +139,66 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
             if return_static:
                 var_stats['target_plot'] = _convert_to_static_image(fig)
             else:
-                var_stats['target_plot'] = fig
+                var_stats['target_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
     
     return var_stats
 
-def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme: str = 'light', return_static: bool = False) -> Dict[str, str]:
-    """Create summary plots for the report"""
+def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme: str = 'light', return_static: bool = False) -> Dict[str, Any]:
+    """
+    Create summary plots for the DataFrame
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame to analyze
+    target : str, optional
+        Name of the target variable
+    theme : str, default 'light'
+        Color theme for plots
+    return_static : bool, default False
+        If True, return static images instead of interactive plots
+        
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing plot HTML strings or static images
+    """
     plotly_template = 'plotly_white' if theme == 'light' else 'plotly_dark'
     
-    # Data Types and Missing Values plot
-    fig1 = make_subplots(
-        rows=1, cols=2,
-        subplot_titles=('Data Types', 'Missing Values'),
-        column_widths=[0.5, 0.5]
-    )
-    
-    # Data Types
-    type_counts = df.dtypes.value_counts()
-    fig1.add_trace(
-        go.Bar(x=type_counts.index.astype(str), y=type_counts.values, name='Data Types'),
-        row=1, col=1
-    )
-    
-    # Missing Values
-    missing = (df.isnull().sum() / len(df) * 100).sort_values(ascending=True)
-    fig1.add_trace(
-        go.Bar(
-            x=missing.values,
-            y=missing.index,
-            orientation='h',
-            name='Missing Values (%)'
-        ),
-        row=1, col=2
-    )
-    
+    # Types and missing values plot
+    fig1 = go.Figure()
+    fig1.add_trace(go.Bar(
+        x=df.dtypes.value_counts().index.astype(str),
+        y=df.dtypes.value_counts().values,
+        name='Types'
+    ))
+    fig1.add_trace(go.Bar(
+        x=df.dtypes.value_counts().index.astype(str),
+        y=df.isna().sum().values,
+        name='Missing'
+    ))
     fig1.update_layout(
-        height=400,
-        showlegend=False,
+        title='Variable Types and Missing Values',
         template=plotly_template
     )
     
-    # Correlations plot
+    # Correlations plot for numeric columns
     numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
     if len(numeric_cols) > 1:
-        corr = df[numeric_cols].corr()
+        corr_matrix = df[numeric_cols].corr()
         fig2 = go.Figure(data=go.Heatmap(
-            z=corr,
-            x=corr.columns,
-            y=corr.columns,
+            z=corr_matrix.values,
+            x=corr_matrix.columns,
+            y=corr_matrix.columns,
             colorscale='RdBu'
         ))
         fig2.update_layout(
             title='Correlation Matrix',
-            height=600,
             template=plotly_template
         )
-        correlations_plot = fig2.to_html(full_html=False)
+        correlations_plot = _convert_to_static_image(fig2) if return_static else fig2.to_html(full_html=False, include_plotlyjs='cdn')
     else:
-        correlations_plot = "<p>No numeric columns available for correlation analysis.</p>"
+        correlations_plot = ""
     
     # Target distribution plot
     if target and target in df.columns:
@@ -217,22 +219,15 @@ def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme:
                 title=f'{target} Distribution'
             )
             fig3.update_layout(template=plotly_template)
-        target_plot = fig3.to_html(full_html=False)
+        target_plot = _convert_to_static_image(fig3) if return_static else fig3.to_html(full_html=False, include_plotlyjs='cdn')
     else:
         target_plot = ""
     
-    if return_static:
-        return {
-            'types_and_missing': fig1.to_html(full_html=False),
-            'correlations': correlations_plot,
-            'target_distribution': target_plot
-        }
-    else:
-        return {
-            'types_and_missing': fig1.to_html(full_html=False),
-            'correlations': correlations_plot,
-            'target_distribution': target_plot
-        }
+    return {
+        'types_and_missing': _convert_to_static_image(fig1) if return_static else fig1.to_html(full_html=False, include_plotlyjs='cdn'),
+        'correlations': correlations_plot,
+        'target_distribution': target_plot
+    }
 
 def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """Analyze duplicate rows in the DataFrame"""

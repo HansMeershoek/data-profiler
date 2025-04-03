@@ -309,7 +309,7 @@ def test_compare_report_themes(tmp_path):
     with open(light_output, 'r', encoding='utf-8') as f:
         light_content = f.read()
     
-    assert 'theme="light"' in light_content
+    assert 'data-theme="light"' in light_content
     
     # Test dark theme
     dark_output = tmp_path / "dark_theme.html"
@@ -318,7 +318,7 @@ def test_compare_report_themes(tmp_path):
     with open(dark_output, 'r', encoding='utf-8') as f:
         dark_content = f.read()
     
-    assert 'theme="dark"' in dark_content
+    assert 'data-theme="dark"' in dark_content
 
 def test_compare_report_no_output():
     """Test that compare function works correctly when no output file is specified."""

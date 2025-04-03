@@ -1,0 +1,60 @@
+Development Prompt: Interactive Notebook Data Profiling Library
+1. Project Goal:
+
+Develop a Python library, installable via pip, designed for data profiling directly within notebook environments (Jupyter, Colab, VS Code notebooks, etc.). The library should provide comprehensive insights into a dataset through an interactive HTML report and offer a static PDF export option.
+
+2. Core Functionality (MVP):
+
+Primary Input: Accepts either a Pandas DataFrame object or a file path string (initially supporting .csv and .parquet files).
+Core Task: Perform a detailed profiling analysis on a single input DataFrame.
+Primary Output: Generate a self-contained, interactive HTML file summarizing the profiling results.
+Secondary Output: Generate a static PDF version of the report.
+3. Key Features (MVP):
+
+Comprehensive Report Sections: The HTML/PDF report should include (but allow configuration to exclude):
+Overview: Dataset dimensions (rows, columns), memory usage, counts/percentages of missing cells, duplicate rows, and variable types.
+Variable Analysis: Detailed statistics, distributions (histograms for numerical, bar charts for categorical), and common values for each column. Tailor statistics to data type (numeric, categorical, boolean, date, etc.).
+Target Variable Analysis: If a target='column_name' is specified:
+Highlight correlations between other features and the target variable.
+Potentially show distributions/plots of features relative to the target (e.g., feature distribution per target class for classification, scatter plots vs. target for regression).
+Correlations: Compute and visualize correlation matrices (e.g., Pearson, Spearman) using heatmaps. Highlight correlations involving the optional target variable.
+Missing Values: Visualize missing data patterns (e.g., matrix, heatmap, bar chart).
+Duplicate Rows: List or show a preview of duplicate rows.
+Outliers: Basic outlier detection information (e.g., based on IQR or standard deviations) for numerical columns.
+Interactivity (HTML): Utilize Plotly for interactive charts (zoom, pan, hover tooltips). Implement interactive/sortable tables for lists (e.g., column overview).
+PDF Export: Provide functionality to save the report as a static PDF. Visualizations should be rendered as images.
+Configuration & Control:
+Dual Mode:
+Interactive Mode (Default): If the main profile() function is called without specific configuration arguments (e.g., profile(df) or profile("data.csv")), it should interactively prompt the user: "Generate full report? [y/n]". If 'n', potentially ask further questions about which sections or analyses to include/exclude.
+Argument Mode: If the profile() function is called with specific configuration arguments (e.g., profile(df, target='price', correlations=False, include_sections=['overview', 'variables'])), it MUST run non-interactively using only the provided settings.
+Section Selection (Argument Mode & PDF): Allow users to specify which report sections to include/exclude via function arguments (e.g., include_sections=['overview'], exclude_sections=['correlations']). This configuration applies to both HTML and PDF generation for that specific run.
+Internal Data Quality Checks: Implement common checks directly using Pandas/NumPy (missing counts, uniqueness percentages, data type consistency checks) to minimize external dependencies for V1.
+Input Handling: Read CSV and Parquet files if a path is provided. Include basic error handling for file not found or unsupported types.
+4. Technology Stack (MVP):
+
+Language: Python (>= 3.8 recommended)
+Core Data: Pandas, NumPy
+Visualization: Plotly (primary for interactivity), potentially Matplotlib/Seaborn for specific static plots if needed.
+HTML Templating: Jinja2
+PDF Generation: Use a free, open-source library. Start with xhtml2pdf (pure Python, easier dependency) or WeasyPrint (better CSS support, needs external dependencies). Decide and document the choice.
+Packaging: pyproject.toml with a standard build backend (e.g., setuptools).
+5. Development Practices & Repository Setup:
+
+Target Environment: Python notebooks.
+Code Quality: Follow PEP 8 guidelines, use type hinting.
+Testing: Implement unit tests using pytest covering core calculations, different configurations, and input types.
+Version Control: Git.
+Repository: Set up a public GitHub repository. Include:
+LICENSE file (MIT or Apache 2.0).
+README.md with project description, installation instructions (pip install ...), and basic usage examples (showing both interactive and argument-driven modes, including target variable).
+Standard Python package structure (src/your_library_name or your_library_name/, tests/).
+Collaboration: Use Cursor AI for development assistance, code generation, testing, and documentation.
+6. Future Enhancements (Phase 2 Plan):
+
+Implement DataFrame comparison functionality (e.g., compare_profiles(df_train, df_test)).
+Refine PDF generation, potentially exploring alternative libraries or configuration options (revisit Option B if needed).
+Investigate other export formats (e.g., PowerPoint).
+Explore optional integration with data quality libraries like Great Expectations or Pandera for users who need more advanced validation.
+7. Primary Goal/Differentiation:
+
+Focus on delivering Feature Richness within the MVP scope, particularly through comprehensive single-DataFrame analysis enhanced by the target variable insights. Aim for an intuitive user experience via the dual configuration modes (interactive/arguments) and highly interactive HTML reports. Maintain good performance and minimize initial dependencies.

@@ -4,7 +4,7 @@ First off, thank you for considering contributing to pytics! It's people like yo
 
 ## Code of Conduct
 
-While we don't have a formal code of conduct yet, we expect all contributors to:
+While I don't have a formal code of conduct yet, I expect all contributors to:
 - Be respectful and inclusive
 - Focus on constructive feedback
 - Help maintain a positive environment for everyone
@@ -20,7 +20,7 @@ There are many ways to contribute to pytics:
 
 ### Reporting Bugs
 
-If you find a bug, please report it using our [bug report template](https://github.com/HansMeershoek/pytics/issues/new?template=bug_report.md).
+If you find a bug, please report it using my [bug report template](https://github.com/HansMeershoek/pytics/issues/new?template=bug_report.md).
 
 Before submitting a bug report:
 1. Check if the bug has already been reported
@@ -29,7 +29,7 @@ Before submitting a bug report:
 
 ### Suggesting Enhancements
 
-Have an idea for improving pytics? Submit a feature request using our [feature request template](https://github.com/HansMeershoek/pytics/issues/new?template=feature_request.md).
+Have an idea for improving pytics? Submit a feature request using my [feature request template](https://github.com/HansMeershoek/pytics/issues/new?template=feature_request.md).
 
 When suggesting enhancements:
 1. Explain the problem you're trying to solve
@@ -121,6 +121,6 @@ When suggesting enhancements:
 If you have questions about contributing, feel free to:
 1. Open a discussion on GitHub
 2. Ask in an existing relevant issue
-3. Reach out to the maintainers
+3. Reach out to me
 
 Thank you for contributing to pytics! 🎉 

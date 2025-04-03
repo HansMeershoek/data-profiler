@@ -291,4 +291,61 @@ def profile(
         result_file.close()
         
         if pisa_status.err:
-            raise ProfilerError("Error generating PDF report") 
+            raise ProfilerError("Error generating PDF report")
+
+def compare(
+    df1: pd.DataFrame,
+    df2: pd.DataFrame,
+    name1: str = "DataFrame 1",
+    name2: str = "DataFrame 2",
+    output_file: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Compare two pandas DataFrames and analyze their differences, starting with schema comparison.
+
+    Parameters
+    ----------
+    df1 : pandas.DataFrame
+        First DataFrame to compare
+    df2 : pandas.DataFrame
+        Second DataFrame to compare
+    name1 : str, default "DataFrame 1"
+        Name to identify the first DataFrame in the comparison
+    name2 : str, default "DataFrame 2"
+        Name to identify the second DataFrame in the comparison
+    output_file : str, optional
+        Path to save the comparison report (not implemented yet)
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing schema comparison results:
+        - columns_only_in_df1: List of columns present only in df1
+        - columns_only_in_df2: List of columns present only in df2
+        - common_columns: List of columns present in both DataFrames
+        - dtype_differences: Dict mapping column names to tuple of (df1_dtype, df2_dtype)
+          for columns with different dtypes
+    """
+    # Get column sets
+    cols1 = set(df1.columns)
+    cols2 = set(df2.columns)
+
+    # Find unique and common columns
+    columns_only_in_df1 = sorted(list(cols1 - cols2))
+    columns_only_in_df2 = sorted(list(cols2 - cols1))
+    common_columns = sorted(list(cols1 & cols2))
+
+    # Analyze dtype differences for common columns
+    dtype_differences = {}
+    for col in common_columns:
+        dtype1 = str(df1[col].dtype)
+        dtype2 = str(df2[col].dtype)
+        if dtype1 != dtype2:
+            dtype_differences[col] = (dtype1, dtype2)
+
+    return {
+        'columns_only_in_df1': columns_only_in_df1,
+        'columns_only_in_df2': columns_only_in_df2,
+        'common_columns': common_columns,
+        'dtype_differences': dtype_differences
+    } 

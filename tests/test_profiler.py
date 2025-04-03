@@ -331,9 +331,26 @@ def test_compare_report_no_output():
     assert 'variable_comparison' in results
     assert 'numeric' in results['variable_comparison'] 
 
+def test_profile_variables_structure(sample_df, tmp_path):
+    """Test that variables are passed as a dictionary in the profile function"""
+    output_file = tmp_path / "report.html"
+    profile(sample_df, output_file=str(output_file))
+    
+    # Read the generated report
+    with open(output_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Check that the report contains variable names from the sample DataFrame
+    for col in sample_df.columns:
+        if col != 'target':  # Skip target column if it exists
+            assert col in content, f"Variable {col} not found in report"
+
 def test_template_loading():
     """Test that templates can be loaded correctly"""
-    env = Environment(loader=PackageLoader('pytics', 'templates'))
+    env = Environment(
+        loader=PackageLoader('pytics', 'templates'),
+        globals={'len': len}
+    )
     
     # Test loading all templates
     templates = ['report_template.html.j2', 'compare_report_template.html.j2', 'base_template.html.j2']

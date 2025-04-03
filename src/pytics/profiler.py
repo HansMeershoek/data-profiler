@@ -12,8 +12,11 @@ from jinja2 import Environment, PackageLoader
 from xhtml2pdf import pisa
 import os
 
-# Initialize Jinja2 environment with PackageLoader
-env = Environment(loader=PackageLoader('pytics', 'templates'))
+# Initialize Jinja2 environment with PackageLoader and len function
+env = Environment(
+    loader=PackageLoader('pytics', 'templates'),
+    globals={'len': len}
+)
 
 class ProfilerError(Exception):
     """Base exception for data profiler errors"""
@@ -250,7 +253,9 @@ def profile(
     
     # Calculate all statistics and generate plots
     overview = _calculate_overview_stats(df)
-    variables = [_analyze_variable(df, col, target) for col in df.columns if col != target]
+    variables_list = [_analyze_variable(df, col, target) for col in df.columns if col != target]
+    # Convert variables list to dictionary with column names as keys
+    variables = {var['name']: var for var in variables_list}
     plots = _create_summary_plots(df, target, theme)
     duplicates = _analyze_duplicates(df)
     

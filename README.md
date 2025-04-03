@@ -1,4 +1,4 @@
-## pytics
+# pytics
 
 [![PyPI version](https://img.shields.io/pypi/v/pytics)](https://pypi.org/project/pytics/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/pytics)](https://pypi.org/project/pytics/)

@@ -14,7 +14,6 @@ import os
 
 # Initialize Jinja2 environment with PackageLoader
 env = Environment(loader=PackageLoader('pytics', 'templates'))
-# Add len function to globals
 env.globals['len'] = len
 
 class ProfilerError(Exception):

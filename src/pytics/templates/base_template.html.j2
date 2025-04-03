@@ -8,15 +8,6 @@
     <style>
         :root {
             --sidebar-width: 250px;
-            --primary-bg: {{ '#ffffff' if theme == 'light' else '#1a1a1a' }};
-            --secondary-bg: {{ '#f8f9fa' if theme == 'light' else '#2d2d2d' }};
-            --sidebar-bg: {{ '#e9ecef' if theme == 'light' else '#1f1f1f' }};
-            --text-color: {{ '#212529' if theme == 'light' else '#f0f0f0' }};
-            --border-color: {{ '#dee2e6' if theme == 'light' else '#404040' }};
-            --hover-bg: {{ '#e2e6ea' if theme == 'light' else '#3d3d3d' }};
-            --plot-green: #2ecc71;
-            --plot-yellow: #f1c40f;
-            --plot-red: #e74c3c;
         }
 
         body {
@@ -24,26 +15,26 @@
             line-height: 1.6;
             margin: 0;
             padding: 0;
-            background-color: var(--primary-bg);
-            color: var(--text-color);
+            background-color: {{ '#ffffff' if theme == 'light' else '#1a1a1a' }};
+            color: {{ '#212529' if theme == 'light' else '#f0f0f0' }};
             display: flex;
             min-height: 100vh;
         }
 
         .sidebar {
             width: var(--sidebar-width);
-            background-color: var(--sidebar-bg);
+            background-color: {{ '#e9ecef' if theme == 'light' else '#1f1f1f' }};
             padding: 20px;
             position: fixed;
             height: 100vh;
             overflow-y: auto;
-            border-right: 1px solid var(--border-color);
+            border-right: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
         }
 
         .sidebar h2 {
             margin-top: 0;
             padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
         }
 
         .nav-links {
@@ -59,18 +50,18 @@
         .nav-links a {
             display: block;
             padding: 8px 12px;
-            color: var(--text-color);
+            color: {{ '#212529' if theme == 'light' else '#f0f0f0' }};
             text-decoration: none;
             border-radius: 4px;
             transition: background-color 0.2s;
         }
 
         .nav-links a:hover {
-            background-color: var(--hover-bg);
+            background-color: {{ '#e2e6ea' if theme == 'light' else '#3d3d3d' }};
         }
 
         .nav-links a.active {
-            background-color: var(--hover-bg);
+            background-color: {{ '#e2e6ea' if theme == 'light' else '#3d3d3d' }};
             font-weight: bold;
         }
 
@@ -81,22 +72,22 @@
         }
 
         .section {
-            background-color: var(--secondary-bg);
+            background-color: {{ '#f8f9fa' if theme == 'light' else '#2d2d2d' }};
             border-radius: 4px;
             padding: 20px;
             margin-bottom: 20px;
-            border: 1px solid var(--border-color);
+            border: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
         }
 
         .section h2 {
             margin-top: 0;
             padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
         }
 
         .card {
-            background-color: var(--primary-bg);
-            border: 1px solid var(--border-color);
+            background-color: {{ '#ffffff' if theme == 'light' else '#1a1a1a' }};
+            border: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
             border-radius: 4px;
             padding: 15px;
             margin-bottom: 15px;
@@ -111,24 +102,24 @@
         th, td {
             padding: 8px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
         }
 
         th {
-            background-color: var(--secondary-bg);
+            background-color: {{ '#f8f9fa' if theme == 'light' else '#2d2d2d' }};
         }
 
         .plot-container {
             margin: 15px 0;
-            border: 1px solid var(--border-color);
+            border: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
             border-radius: 4px;
             padding: 10px;
-            background-color: var(--primary-bg);
+            background-color: {{ '#ffffff' if theme == 'light' else '#1a1a1a' }};
         }
 
         hr {
             border: none;
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid {{ '#dee2e6' if theme == 'light' else '#404040' }};
             margin: 15px 0;
         }
 

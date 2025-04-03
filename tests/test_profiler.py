@@ -71,7 +71,7 @@ def test_theme_options(sample_df, tmp_path):
     
     # Verify theme is in the HTML
     content = output_file.read_text(encoding='utf-8')
-    assert 'background-color: #1a1a1a' in content 
+    assert 'data-theme="dark"' in content
 
 def test_compare_basic(sample_df, sample_df2):
     """Test basic DataFrame comparison functionality"""

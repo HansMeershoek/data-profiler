@@ -38,39 +38,115 @@ pip install pytics
 import pandas as pd
 from pytics import profile, compare
 
-# Load your dataset
+# --- Basic Profiling ---
+# Method 1: Profile a DataFrame object
 df = pd.read_csv('your_data.csv')
-
-# Generate an HTML report
 profile(df, output_file='report.html')
 
+# Method 2: Profile directly from a file path
+# Supports CSV and Parquet files
+profile('path/to/your_data.csv', output_file='report.html')
+profile('path/to/your_data.parquet', output_file='report.html')
+
+# --- Advanced Profiling ---
 # Generate a PDF report
 profile(df, output_format='pdf', output_file='report.pdf')
 
-# Profile with a target variable
-profile(df, target='target_column', output_file='report.html')
+# Profile with a target variable for enhanced analysis
+profile(
+    df,
+    target='target_column',  # Enables target-specific analysis
+    output_file='targeted_report.html'
+)
 
-# Select specific sections
+# Select specific sections to include/exclude
 profile(
     df,
     include_sections=['overview', 'correlations'],
-    output_file='report.html'
+    exclude_sections=['target_analysis'],
+    output_file='custom_report.html'
 )
 
-# --- Comparing Two DataFrames ---
-# Load your datasets for comparison
+# --- DataFrame Comparison ---
+# Method 1: Compare two DataFrame objects
 df_train = pd.read_csv('train_data.csv')
 df_test = pd.read_csv('test_data.csv')
 
-# Generate a comparison report
-compare_report = compare(
+compare(
     df_train, 
-    df_test, 
+    df_test,
     name1='Train Set',    # Optional: Custom names for the datasets
     name2='Test Set',
     output_file='comparison.html'
 )
+
+# Method 2: Compare directly from file paths
+compare(
+    'path/to/train_data.csv',
+    'path/to/test_data.csv',
+    name1='Train Set',
+    name2='Test Set',
+    output_file='comparison.html'
+)
 ```
+
+## Target Variable Analysis
+
+When you specify a target variable using the `target` parameter, pytics enhances the analysis with:
+
+- Target distribution visualization
+- Feature importance analysis
+- Target-specific correlations
+- Conditional distributions of features
+- Statistical tests for feature-target relationships
+
+Example:
+```python
+# Profile with target variable analysis
+profile(
+    df,
+    target='target_column',
+    output_file='targeted_report.html'
+)
+```
+
+## Configuration Options
+
+### Profile Configuration
+```python
+profile(
+    df,
+    target='target_column',           # Target variable for supervised learning
+    include_sections=['overview'],    # Sections to include
+    exclude_sections=['correlations'],# Sections to exclude
+    output_format='pdf',             # 'html' or 'pdf'
+    output_file='report.html',       # Output file path
+    theme='light',                   # Report theme ('light' or 'dark')
+    title='Custom Report Title'      # Report title
+)
+```
+
+### Compare Configuration
+```python
+compare(
+    df1,
+    df2,
+    name1='First Dataset',           # Custom name for first dataset
+    name2='Second Dataset',          # Custom name for second dataset
+    output_file='comparison.html',   # Output file path
+    theme='light',                   # Report theme ('light' or 'dark')
+    title='Dataset Comparison'       # Report title
+)
+```
+
+### Available Sections
+- `overview`: Dataset summary and memory usage
+- `variables`: Detailed variable analysis
+- `correlations`: Correlation analysis
+- `target_analysis`: Target-specific insights (requires target parameter)
+- `interactions`: Feature interaction analysis
+- `missing_values`: Missing value patterns
+- `duplicates`: Duplicate record analysis
 
 ## Report Sections
 
@@ -95,32 +171,6 @@ compare_report = compare(
    - Target distribution
    - Feature importance
    - Target correlations
-
-## Configuration Options
-
-```python
-# Profile configuration
-profile(
-    df,
-    target='target_column',           # Target variable for supervised learning
-    include_sections=['overview'],    # Sections to include
-    exclude_sections=['correlations'],# Sections to exclude
-    output_format='pdf',             # 'html' or 'pdf'
-    output_file='report.html',       # Output file path
-    theme='light',                   # Report theme
-    title='Custom Report Title'      # Report title
-)
-
-# Compare configuration
-compare(
-    df1,
-    df2,
-    name1='First Dataset',           # Custom name for first dataset
-    name2='Second Dataset',          # Custom name for second dataset
-    output_file='comparison.html',   # Output file path
-    theme='light'                    # Report theme
-)
-```
 
 ## Edge Cases and Limitations
 

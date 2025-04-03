@@ -33,6 +33,7 @@ dependencies = [
     "xhtml2pdf>=0.2.8",
     "scipy>=1.7.0",
     "IPython>=7.0.0",
+    "matplotlib>=3.3.0",
 ]
 
 [project.urls]

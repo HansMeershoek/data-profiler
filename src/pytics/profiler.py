@@ -12,11 +12,10 @@ from jinja2 import Environment, PackageLoader
 from xhtml2pdf import pisa
 import os
 
-# Initialize Jinja2 environment with PackageLoader and len function
-env = Environment(
-    loader=PackageLoader('pytics', 'templates'),
-    globals={'len': len}
-)
+# Initialize Jinja2 environment with PackageLoader
+env = Environment(loader=PackageLoader('pytics', 'templates'))
+# Add len function to globals
+env.globals['len'] = len
 
 class ProfilerError(Exception):
     """Base exception for data profiler errors"""
@@ -272,7 +271,22 @@ def profile(
         'variables': variables,
         'plots': plots,
         'duplicates': duplicates,
-        'target': target_analysis
+        'target': target_analysis,
+        # Add required context variables for the template
+        'n_vars': len(df.columns),
+        'n_obs': len(df),
+        'n_missing': df.isna().sum().sum(),
+        'missing_percent': (df.isna().sum().sum() / (len(df) * len(df.columns)) * 100).round(2),
+        'n_duplicates': df.duplicated().sum(),
+        'duplicates_percent': (df.duplicated().sum() / len(df) * 100).round(2),
+        'n_numeric': len(df.select_dtypes(include=['int64', 'float64']).columns),
+        'n_categorical': len(df.select_dtypes(include=['object', 'category']).columns),
+        'n_boolean': len(df.select_dtypes(include=['bool']).columns),
+        'n_date': len(df.select_dtypes(include=['datetime64']).columns),
+        'n_text': len(df.select_dtypes(include=['string']).columns),
+        'correlation_plot': plots.get('correlation', ''),
+        'missing_plot': plots.get('missing', ''),
+        'duplicates_plot': plots.get('duplicates', '')
     }
     
     # Load and render template

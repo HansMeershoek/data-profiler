@@ -1,12 +1,11 @@
-# Pytics
+# pytics
+
+[![PyPI version](https://img.shields.io/pypi/v/pytics)](https://pypi.org/project/pytics/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/pytics)](https://pypi.org/project/pytics/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/HansMeershoek/pytics/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/HansMeershoek/pytics/actions/workflows/python-test.yml)
 
 An interactive data profiling library for Python that generates comprehensive HTML reports with rich visualizations and PDF export capabilities.
-
-[![PyPI version](https://badge.fury.io/py/pytics.svg)](https://badge.fury.io/py/pytics)
-[![Python](https://img.shields.io/pypi/pyversions/pytics)](https://pypi.org/project/pytics)
-[![GitHub Actions](https://github.com/HansMeershoek/pytics/actions/workflows/python-test.yml/badge.svg?branch=main)](https://github.com/HansMeershoek/pytics/actions)
-[![License](https://img.shields.io/github/license/HansMeershoek/pytics)](https://github.com/HansMeershoek/pytics/blob/main/LICENSE)
-[![Downloads](https://static.pepy.tech/badge/pytics)](https://pepy.tech/project/pytics)
 
 ## Features
 

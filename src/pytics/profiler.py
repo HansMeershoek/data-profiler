@@ -11,10 +11,11 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader
 from xhtml2pdf import pisa
 import os
+import builtins
 
 # Initialize Jinja2 environment with PackageLoader
 env = Environment(loader=PackageLoader('pytics', 'templates'))
-env.globals['len'] = len
+env.globals['len'] = builtins.len
 
 class ProfilerError(Exception):
     """Base exception for data profiler errors"""

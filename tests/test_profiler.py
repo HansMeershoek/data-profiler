@@ -8,6 +8,7 @@ from pytics import profile
 from pytics.profiler import DataSizeError, ProfilerError, compare
 from pathlib import Path
 from jinja2 import Environment, PackageLoader
+import builtins
 
 @pytest.fixture
 def sample_df():
@@ -347,10 +348,8 @@ def test_profile_variables_structure(sample_df, tmp_path):
 
 def test_template_loading():
     """Test that templates can be loaded correctly"""
-    env = Environment(
-        loader=PackageLoader('pytics', 'templates'),
-        globals={'len': len}
-    )
+    env = Environment(loader=PackageLoader('pytics', 'templates'))
+    env.globals['len'] = builtins.len
     
     # Test loading all templates
     templates = ['report_template.html.j2', 'compare_report_template.html.j2', 'base_template.html.j2']

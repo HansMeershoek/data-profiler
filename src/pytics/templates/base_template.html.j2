@@ -156,15 +156,59 @@
                 flex-direction: column;
             }
         }
+
+        /* Print-specific styles */
+        @media print {
+            /* Hide sidebar in PDF output */
+            .sidebar {
+                display: none !important;
+            }
+
+            /* Adjust main content layout for PDF */
+            .main-content {
+                margin-left: 0 !important;
+                padding: 5mm !important;
+                width: 100% !important;
+            }
+
+            /* Ensure sections start at the top of the page */
+            .section {
+                margin-top: 0 !important;
+                page-break-inside: avoid;
+            }
+
+            /* Improve table readability in PDF */
+            table {
+                page-break-inside: avoid;
+            }
+
+            /* Ensure plots don't break across pages */
+            .plot-container {
+                page-break-inside: avoid;
+            }
+
+            /* Remove background colors for better print quality */
+            body, .section, .card {
+                background-color: white !important;
+                color: black !important;
+            }
+
+            /* Adjust borders for better print contrast */
+            .section, .card, table, th, td {
+                border-color: #999 !important;
+            }
+        }
     </style>
 </head>
 <body data-theme="{{ theme }}">
+    {% if not is_pdf_output %}
     <div class="sidebar">
         <h2>Navigation</h2>
         <ul class="nav-links">
             {% block navigation %}{% endblock %}
         </ul>
     </div>
+    {% endif %}
     
     <div class="main-content">
         {% block content %}{% endblock %}

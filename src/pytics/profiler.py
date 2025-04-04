@@ -281,6 +281,19 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
     Dict[str, Any]
         Dictionary containing the JSON data
     """
+    def _convert_numpy_types(obj):
+        """Helper function to convert numpy types to Python native types"""
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64,
+                          np.uint8, np.uint16, np.uint32, np.uint64)):
+            return int(obj)
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+            return float(obj)
+        elif isinstance(obj, (np.bool_)):
+            return bool(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return obj
+
     # Initialize data structure
     data = {
         "metadata": {
@@ -291,11 +304,11 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
         },
         "overview": {
             "shape": {
-                "rows": len(df),
-                "columns": len(df.columns)
+                "rows": _convert_numpy_types(len(df)),
+                "columns": _convert_numpy_types(len(df.columns))
             },
-            "n_vars": len(df.columns),
-            "n_obs": len(df),
+            "n_vars": _convert_numpy_types(len(df.columns)),
+            "n_obs": _convert_numpy_types(len(df)),
             "memory_usage": f"{df.memory_usage(deep=True).sum() / 1024**2:.2f} MB"
         },
         "variables": {}
@@ -308,11 +321,20 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
         var_data = _analyze_variable(df, column, target)
         data["variables"][column] = {
             "type": var_data["type"],
-            "distinct_count": var_data["distinct_count"],
+            "distinct_count": _convert_numpy_types(var_data["distinct_count"]),
             "distinct_pct": var_data["distinct_pct"],
-            "missing_count": var_data["missing_count"],
+            "missing_count": _convert_numpy_types(var_data["missing_count"]),
             "missing_pct": var_data["missing_pct"],
-            "statistics": var_data["statistics"]
+            "statistics": {
+                "mean": var_data["statistics"]["mean"],
+                "std": var_data["statistics"]["std"],
+                "min": var_data["statistics"]["min"],
+                "q1": var_data["statistics"]["q1"],
+                "median": var_data["statistics"]["median"],
+                "q3": var_data["statistics"]["q3"],
+                "max": var_data["statistics"]["max"],
+                "mode": var_data["statistics"].get("mode")
+            }
         }
     
     # Add correlations if requested
@@ -323,7 +345,7 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
             data["correlations"] = {
                 "pearson": {
                     col1: {
-                        col2: float(corr_matrix.loc[col1, col2]) if not pd.isna(corr_matrix.loc[col1, col2]) else None
+                        col2: _convert_numpy_types(corr_matrix.loc[col1, col2]) if not pd.isna(corr_matrix.loc[col1, col2]) else None
                         for col2 in corr_matrix.columns
                     }
                     for col1 in corr_matrix.index
@@ -334,16 +356,16 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
     if (not include_sections or "missing_values" in include_sections) and (not exclude_sections or "missing_values" not in exclude_sections):
         total_missing = df.isna().sum().sum()
         data["missing_values"] = {
-            "total_missing": int(total_missing),
+            "total_missing": _convert_numpy_types(total_missing),
             "missing_percentage": float((total_missing / (df.size)) * 100),
-            "variables_with_missing": int(df.isna().any().sum())
+            "variables_with_missing": _convert_numpy_types(df.isna().any().sum())
         }
     
     # Add duplicates information if requested
     if (not include_sections or "duplicates" in include_sections) and (not exclude_sections or "duplicates" not in exclude_sections):
         duplicates = df.duplicated().sum()
         data["duplicates"] = {
-            "total_duplicates": int(duplicates),
+            "total_duplicates": _convert_numpy_types(duplicates),
             "duplicate_percentage": float((duplicates / len(df)) * 100)
         }
     
@@ -357,7 +379,7 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
             for col in df.columns:
                 if col != target and pd.api.types.is_numeric_dtype(df[col]):
                     corr = df[col].corr(target_series)
-                    feature_importance[col] = abs(float(corr)) if not pd.isna(corr) else 0.0
+                    feature_importance[col] = _convert_numpy_types(abs(float(corr))) if not pd.isna(corr) else 0.0
         else:
             # Calculate mutual information for categorical target
             from sklearn.feature_selection import mutual_info_classif
@@ -365,7 +387,7 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
             if len(numeric_cols) > 0:
                 mi_scores = mutual_info_classif(df[numeric_cols], target_series)
                 for col, score in zip(numeric_cols, mi_scores):
-                    feature_importance[col] = float(score)
+                    feature_importance[col] = _convert_numpy_types(float(score))
         
         data["target_analysis"] = {
             "target_name": target,

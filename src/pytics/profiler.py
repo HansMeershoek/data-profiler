@@ -87,7 +87,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
     }
     
     # Add numeric statistics if applicable
-    if series.dtype in ['int64', 'float64']:
+    if pd.api.types.is_numeric_dtype(series):
         desc = series.describe()
         var_stats.update({
             'mean': f"{desc['mean']:.2f}",
@@ -127,7 +127,16 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
     else:
         # For categorical variables
         value_counts = series.value_counts()
-        var_stats['mode'] = value_counts.index[0] if not value_counts.empty else None
+        var_stats.update({
+            'mode': value_counts.index[0] if not value_counts.empty else None,
+            'mean': None,
+            'std': None,
+            'min': None,
+            'q1': None,
+            'median': None,
+            'q3': None,
+            'max': None
+        })
         
         # Distribution plot
         fig = px.bar(
@@ -480,11 +489,14 @@ def profile(
     overview_stats = _calculate_overview_stats(df)
     
     # Analyze each variable
-    variables = []
+    variables_list = []
     for column in df.columns:
         if target and column == target:
             continue
-        variables.append(_analyze_variable(df, column, target, return_static))
+        variables_list.append(_analyze_variable(df, column, target, return_static))
+    
+    # Convert variables list to dictionary with column names as keys
+    variables = {var['name']: var for var in variables_list}
     
     # Create summary plots
     summary_plots = _create_summary_plots(df, target, theme, return_static)

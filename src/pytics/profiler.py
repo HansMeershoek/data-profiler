@@ -85,19 +85,21 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
         'distinct_pct': f"{(distinct_count / total_count) * 100:.2f}",
         'missing_count': missing_count,
         'missing_pct': f"{(missing_count / total_count) * 100:.2f}",
-        'mean': None,
-        'std': None,
-        'min': None,
-        'q1': None,
-        'median': None,
-        'q3': None,
-        'max': None
+        'statistics': {
+            'mean': None,
+            'std': None,
+            'min': None,
+            'q1': None,
+            'median': None,
+            'q3': None,
+            'max': None
+        }
     }
     
     # Add numeric statistics if applicable
     if pd.api.types.is_numeric_dtype(series):
         desc = series.describe()
-        var_stats.update({
+        var_stats['statistics'].update({
             'mean': f"{desc['mean']:.2f}",
             'std': f"{desc['std']:.2f}",
             'min': f"{desc['min']:.2f}",
@@ -135,7 +137,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
     else:
         # For categorical variables
         value_counts = series.value_counts()
-        var_stats['mode'] = value_counts.index[0] if not value_counts.empty else None
+        var_stats['statistics']['mode'] = value_counts.index[0] if not value_counts.empty else None
         
         # Distribution plot
         fig = px.bar(
@@ -299,64 +301,19 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
         "variables": {}
     }
     
-    # Process each variable
+    # Add variables analysis
     for column in df.columns:
         if target and column == target:
             continue
-            
-        series = df[column]
-        var_data = {
-            "type": str(series.dtype),
-            "missing_count": int(series.isna().sum()),
-            "statistics": {},
-            "distribution": {"type": "none"}
+        var_data = _analyze_variable(df, column, target)
+        data["variables"][column] = {
+            "type": var_data["type"],
+            "distinct_count": var_data["distinct_count"],
+            "distinct_pct": var_data["distinct_pct"],
+            "missing_count": var_data["missing_count"],
+            "missing_pct": var_data["missing_pct"],
+            "statistics": var_data["statistics"]
         }
-        
-        # Add statistics based on data type
-        if pd.api.types.is_numeric_dtype(series):
-            desc = series.describe()
-            var_data["statistics"].update({
-                "mean": float(desc["mean"]) if not pd.isna(desc["mean"]) else None,
-                "std": float(desc["std"]) if not pd.isna(desc["std"]) else None,
-                "min": float(desc["min"]) if not pd.isna(desc["min"]) else None,
-                "25%": float(desc["25%"]) if not pd.isna(desc["25%"]) else None,
-                "50%": float(desc["50%"]) if not pd.isna(desc["50%"]) else None,
-                "75%": float(desc["75%"]) if not pd.isna(desc["75%"]) else None,
-                "max": float(desc["max"]) if not pd.isna(desc["max"]) else None,
-                "unique_count": int(series.nunique())
-            })
-            
-            # Add histogram data for non-empty series
-            if not series.empty and not series.dropna().empty:
-                hist, bin_edges = np.histogram(series.dropna(), bins='auto')
-                var_data["distribution"] = {
-                    "type": "histogram",
-                    "counts": hist.tolist(),
-                    "bin_edges": bin_edges.tolist()
-                }
-        else:
-            value_counts = series.value_counts()
-            var_data["statistics"].update({
-                "mode": str(value_counts.index[0]) if not value_counts.empty else None,
-                "unique_count": int(series.nunique()),
-                "mean": None,
-                "std": None,
-                "min": None,
-                "25%": None,
-                "50%": None,
-                "75%": None,
-                "max": None
-            })
-            
-            # Add bar chart data for categorical variables
-            if not series.empty and series.nunique() <= 50:  # Only for reasonable number of categories
-                var_data["distribution"] = {
-                    "type": "bar",
-                    "categories": value_counts.index.astype(str).tolist(),
-                    "counts": value_counts.values.tolist()
-                }
-        
-        data["variables"][column] = var_data
     
     # Add correlations if requested
     if (not include_sections or "correlations" in include_sections) and (not exclude_sections or "correlations" not in exclude_sections):

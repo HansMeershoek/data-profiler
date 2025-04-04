@@ -4,11 +4,15 @@ Tests for the data profiler functionality
 import pytest
 import pandas as pd
 import numpy as np
+import json
+from jsonschema import validate
+from datetime import datetime
 from pytics import profile
 from pytics.profiler import DataSizeError, ProfilerError, compare
 from pathlib import Path
 from jinja2 import Environment, PackageLoader
 import builtins
+from .json_schema import PYTICS_JSON_SCHEMA
 
 @pytest.fixture
 def sample_df():
@@ -385,3 +389,106 @@ def test_compare_report_context(sample_df):
     # Verify DataFrame references
     assert results['df1'] is sample_df
     assert results['df2'] is df2 
+
+def test_json_export_basic(tmp_path):
+    """Test basic JSON export functionality."""
+    df = pd.DataFrame({
+        'num': [1, 2, 3, 4, 5],
+        'cat': ['A', 'B', 'A', 'C', 'B']
+    })
+    output_file = tmp_path / "test.json"
+    profile(df, output_format='json', output_file=str(output_file))
+    
+    # Verify file exists and is valid JSON
+    assert output_file.exists()
+    with open(output_file) as f:
+        data = json.load(f)
+    
+    # Validate against schema
+    validate(instance=data, schema=PYTICS_JSON_SCHEMA)
+    
+    # Check basic structure
+    assert set(data.keys()) >= {"metadata", "overview", "variables"}
+    assert data["overview"]["shape"] == {"rows": 5, "columns": 2}
+    assert set(data["variables"].keys()) == {"num", "cat"}
+
+def test_json_export_with_target(tmp_path):
+    """Test JSON export with target variable analysis."""
+    df = pd.DataFrame({
+        'feature1': [1, 2, 3, 4, 5],
+        'feature2': [2, 4, 6, 8, 10],
+        'target': [0, 1, 0, 1, 0]
+    })
+    output_file = tmp_path / "test_target.json"
+    profile(df, target='target', output_format='json', output_file=str(output_file))
+    
+    with open(output_file) as f:
+        data = json.load(f)
+    
+    validate(instance=data, schema=PYTICS_JSON_SCHEMA)
+    assert "target_analysis" in data
+    assert data["target_analysis"]["target_name"] == "target"
+    assert "feature_importance" in data["target_analysis"]
+
+def test_json_export_with_missing_values(tmp_path):
+    """Test JSON export with missing values."""
+    df = pd.DataFrame({
+        'complete': [1, 2, 3],
+        'missing': [1, None, 3]
+    })
+    output_file = tmp_path / "test_missing.json"
+    profile(df, output_format='json', output_file=str(output_file))
+    
+    with open(output_file) as f:
+        data = json.load(f)
+    
+    validate(instance=data, schema=PYTICS_JSON_SCHEMA)
+    assert data["variables"]["missing"]["missing_count"] == 1
+    assert "missing_values" in data
+    assert data["missing_values"]["total_missing"] == 1
+
+def test_json_export_section_filtering(tmp_path):
+    """Test JSON export with section filtering."""
+    df = pd.DataFrame({
+        'num1': [1, 2, 3],
+        'num2': [4, 5, 6]
+    })
+    output_file = tmp_path / "test_filtered.json"
+    profile(
+        df,
+        output_format='json',
+        output_file=str(output_file),
+        include_sections=['overview', 'variables'],
+        exclude_sections=['correlations', 'missing_values']
+    )
+    
+    with open(output_file) as f:
+        data = json.load(f)
+    
+    validate(instance=data, schema=PYTICS_JSON_SCHEMA)
+    assert "correlations" not in data
+    assert "missing_values" not in data
+    assert "overview" in data
+    assert "variables" in data
+
+def test_json_export_all_dtypes(tmp_path):
+    """Test JSON export with all data types."""
+    df = pd.DataFrame({
+        'int': [1, 2, 3],
+        'float': [1.1, 2.2, 3.3],
+        'str': ['a', 'b', 'c'],
+        'bool': [True, False, True],
+        'datetime': pd.date_range('2024-01-01', periods=3),
+        'category': pd.Categorical(['X', 'Y', 'Z'])
+    })
+    output_file = tmp_path / "test_dtypes.json"
+    profile(df, output_format='json', output_file=str(output_file))
+    
+    with open(output_file) as f:
+        data = json.load(f)
+    
+    validate(instance=data, schema=PYTICS_JSON_SCHEMA)
+    for col in df.columns:
+        assert col in data["variables"]
+        assert "type" in data["variables"][col]
+        assert "statistics" in data["variables"][col] 

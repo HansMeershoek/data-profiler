@@ -1,7 +1,7 @@
 """
 Core profiling functionality
 """
-from typing import Optional, List, Literal, Dict, Any
+from typing import Optional, List, Literal, Dict, Any, Union
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,6 +14,8 @@ import os
 import builtins
 from .visualizations import _convert_to_static_image
 from io import StringIO
+import json
+from datetime import datetime
 
 # Initialize Jinja2 environment with PackageLoader
 env = Environment(loader=PackageLoader('pytics', 'templates'))
@@ -243,50 +245,171 @@ def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
         for count in dup_counts[:10]  # Show top 10 duplicate patterns
     ]
 
+def _prepare_json_data(df: pd.DataFrame, 
+                      title: str,
+                      target: Optional[str] = None,
+                      include_sections: Optional[List[str]] = None,
+                      exclude_sections: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Prepare data for JSON export."""
+    data = {
+        "metadata": {
+            "title": title,
+            "generated_at": datetime.now().isoformat(),
+            "pytics_version": __version__,
+            "schema_version": "1.0"
+        },
+        "overview": {
+            "shape": {"rows": len(df), "columns": len(df.columns)},
+            "n_vars": len(df.columns),
+            "n_obs": len(df),
+            "memory_usage": f"{df.memory_usage(deep=True).sum() / 1024 / 1024:.1f} MB"
+        },
+        "variables": {}
+    }
+    
+    # Process each variable
+    for col in df.columns:
+        col_data = {
+            "type": str(df[col].dtype),
+            "missing_count": df[col].isna().sum()
+        }
+        
+        # Add statistics
+        if pd.api.types.is_numeric_dtype(df[col]):
+            desc = df[col].describe()
+            col_data["statistics"] = {
+                "mean": desc["mean"] if not np.isnan(desc["mean"]) else None,
+                "std": desc["std"] if not np.isnan(desc["std"]) else None,
+                "min": desc["min"] if not np.isnan(desc["min"]) else None,
+                "25%": desc["25%"] if not np.isnan(desc["25%"]) else None,
+                "50%": desc["50%"] if not np.isnan(desc["50%"]) else None,
+                "75%": desc["75%"] if not np.isnan(desc["75%"]) else None,
+                "max": desc["max"] if not np.isnan(desc["max"]) else None,
+                "unique_count": df[col].nunique()
+            }
+            # Add distribution data for numeric columns
+            hist, bin_edges = np.histogram(df[col].dropna(), bins='auto')
+            col_data["distribution"] = {
+                "type": "histogram",
+                "counts": hist.tolist(),
+                "bin_edges": bin_edges.tolist()
+            }
+        else:
+            value_counts = df[col].value_counts()
+            col_data["statistics"] = {
+                "mode": df[col].mode().iloc[0] if not df[col].mode().empty else None,
+                "unique_count": df[col].nunique()
+            }
+            if len(value_counts) <= 50:  # Only include bar data for categorical with reasonable number of categories
+                col_data["distribution"] = {
+                    "type": "bar",
+                    "categories": value_counts.index.tolist(),
+                    "counts": value_counts.values.tolist()
+                }
+            else:
+                col_data["distribution"] = {"type": "none"}
+        
+        data["variables"][col] = col_data
+    
+    # Add correlations if requested
+    if not exclude_sections or "correlations" not in exclude_sections:
+        if include_sections is None or "correlations" in include_sections:
+            numeric_df = df.select_dtypes(include=[np.number])
+            if len(numeric_df.columns) > 1:
+                corr_matrix = numeric_df.corr()
+                data["correlations"] = {
+                    "pearson": {
+                        col: {
+                            other_col: float(val) if not np.isnan(val) else None
+                            for other_col, val in corr_matrix[col].items()
+                        }
+                        for col in corr_matrix.columns
+                    }
+                }
+    
+    # Add missing values analysis
+    if not exclude_sections or "missing_values" not in exclude_sections:
+        if include_sections is None or "missing_values" in include_sections:
+            total_missing = df.isna().sum().sum()
+            data["missing_values"] = {
+                "total_missing": int(total_missing),
+                "missing_percentage": float(total_missing / (len(df) * len(df.columns)) * 100),
+                "variables_with_missing": int((df.isna().sum() > 0).sum())
+            }
+    
+    # Add duplicates analysis
+    if not exclude_sections or "duplicates" not in exclude_sections:
+        if include_sections is None or "duplicates" in include_sections:
+            duplicates = df.duplicated().sum()
+            data["duplicates"] = {
+                "total_duplicates": int(duplicates),
+                "duplicate_percentage": float(duplicates / len(df) * 100)
+            }
+    
+    # Add target analysis if specified
+    if target and (not exclude_sections or "target_analysis" not in exclude_sections):
+        if include_sections is None or "target_analysis" in include_sections:
+            data["target_analysis"] = {
+                "target_name": target,
+                "target_type": str(df[target].dtype)
+            }
+            if pd.api.types.is_numeric_dtype(df[target]):
+                # Add correlation-based feature importance for numeric target
+                correlations = df.corr()[target].abs()
+                correlations = correlations[correlations.index != target]
+                data["target_analysis"]["feature_importance"] = {
+                    col: float(corr)
+                    for col, corr in correlations.items()
+                }
+    
+    return data
+
 def profile(
-    df: pd.DataFrame,
+    df: Union[str, pd.DataFrame],
     target: Optional[str] = None,
-    output_file: str = 'report.html',
-    output_format: Literal['html', 'pdf'] = 'html',
+    output_file: str = "profile_report.html",
+    output_format: str = "html",
     include_sections: Optional[List[str]] = None,
     exclude_sections: Optional[List[str]] = None,
-    theme: Literal['light', 'dark'] = 'light',
-    title: str = "Data Profile Report"
-) -> Optional[str]:
-    """
-    Generate a profile report for the given DataFrame.
+    theme: str = "light",
+    title: str = "DataFrame Profile Report"
+) -> None:
+    """Generate a profile report for the given DataFrame.
     
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        The DataFrame to profile
-    target : str, optional
-        Name of the target variable for supervised learning tasks
-    output_file : str, default 'report.html'
-        Path to save the report
-    output_format : {'html', 'pdf'}, default 'html'
-        Output format for the report
-    include_sections : list of str, optional
-        Sections to include in the report
-    exclude_sections : list of str, optional
-        Sections to exclude from the report
-    theme : {'light', 'dark'}, default 'light'
-        Color theme for the report
-    title : str, default "Data Profile Report"
-        Title for the report
-        
-    Returns
-    -------
-    Optional[str]
-        Path to the generated report file if output_file is provided, None otherwise
-        
-    Raises
-    ------
-    DataSizeError
-        If the DataFrame exceeds size limits
-    ProfilerError
-        For other profiling-related errors
+    Args:
+        df: DataFrame to analyze or path to CSV/Parquet file
+        target: Target variable for supervised learning analysis
+        output_file: Path to save the report
+        output_format: Format of the output ('html', 'pdf', or 'json')
+        include_sections: List of sections to include (if None, includes all)
+        exclude_sections: List of sections to exclude
+        theme: Report theme ('light' or 'dark')
+        title: Report title
     """
+    # Load data if string path provided
+    if isinstance(df, str):
+        if df.endswith('.csv'):
+            df = pd.read_csv(df)
+        elif df.endswith('.parquet'):
+            df = pd.read_parquet(df)
+        else:
+            raise ValueError("Unsupported file format. Use CSV or Parquet files.")
+    
+    # Validate DataFrame size
+    if len(df) > MAX_ROWS or len(df.columns) > MAX_COLS:
+        raise DataSizeError(
+            f"DataFrame exceeds size limits. Current: {len(df)} rows, "
+            f"{len(df.columns)} columns. Maximum: {MAX_ROWS} rows, {MAX_COLS} columns."
+        )
+    
+    if output_format == "json":
+        # Prepare and export JSON data
+        data = _prepare_json_data(df, title, target, include_sections, exclude_sections)
+        with open(output_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        return
+    
+    # Continue with existing HTML/PDF generation logic
     # Check data size limits
     if len(df) > 1_000_000:
         raise DataSizeError("DataFrame exceeds 1 million rows limit")

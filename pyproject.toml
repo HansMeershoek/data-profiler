@@ -48,6 +48,7 @@ dev = [
     "black>=22.0.0",
     "mypy>=0.900",
     "pytest-cov>=2.0.0",
+    "jsonschema>=4.17.0",
 ]
 
 [tool.setuptools]

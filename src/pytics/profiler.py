@@ -318,25 +318,33 @@ def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_s
                 "unique_count": int(series.nunique())
             })
             
-            # Add histogram data
-            hist, bin_edges = np.histogram(series.dropna(), bins='auto')
-            var_data["distribution"] = {
-                "type": "histogram",
-                "counts": hist.tolist(),
-                "bin_edges": bin_edges.tolist()
-            }
+            # Add histogram data for non-empty series
+            if not series.empty and not series.dropna().empty:
+                hist, bin_edges = np.histogram(series.dropna(), bins='auto')
+                var_data["distribution"] = {
+                    "type": "histogram",
+                    "counts": hist.tolist(),
+                    "bin_edges": bin_edges.tolist()
+                }
         else:
             value_counts = series.value_counts()
             var_data["statistics"].update({
                 "mode": str(value_counts.index[0]) if not value_counts.empty else None,
-                "unique_count": int(series.nunique())
+                "unique_count": int(series.nunique()),
+                "mean": None,
+                "std": None,
+                "min": None,
+                "25%": None,
+                "50%": None,
+                "75%": None,
+                "max": None
             })
             
             # Add bar chart data for categorical variables
-            if series.nunique() <= 50:  # Only for reasonable number of categories
+            if not series.empty and series.nunique() <= 50:  # Only for reasonable number of categories
                 var_data["distribution"] = {
                     "type": "bar",
-                    "categories": value_counts.index.tolist(),
+                    "categories": value_counts.index.astype(str).tolist(),
                     "counts": value_counts.values.tolist()
                 }
         
@@ -484,6 +492,38 @@ def profile(
     # Analyze duplicates
     duplicate_samples = _analyze_duplicates(df)
     
+    # Generate DataFrame summary data
+    info_buffer = StringIO()
+    df.info(buf=info_buffer, max_cols=None, memory_usage=True, show_counts=True)
+    info_str = info_buffer.getvalue()
+    
+    # Generate split describe outputs
+    describe_num = df.describe(include=[np.number])
+    describe_num_str = describe_num.to_string() if not describe_num.empty else None
+    
+    describe_obj = df.describe(include=['object', 'category', 'bool'])
+    describe_obj_str = describe_obj.to_string() if not describe_obj.empty else None
+    
+    head_html = df.head(5).to_html(
+        classes='table table-striped',
+        float_format=lambda x: f'{x:.2f}' if isinstance(x, float) else x
+    )
+    
+    tail_html = df.tail(5).to_html(
+        classes='table table-striped',
+        float_format=lambda x: f'{x:.2f}' if isinstance(x, float) else x
+    )
+    
+    # Add DataFrame summary data to context
+    dataframe_summary_data = {
+        'info_str': info_str,
+        'describe_num_str': describe_num_str,
+        'describe_obj_str': describe_obj_str,
+        'head_html': head_html,
+        'tail_html': tail_html,
+        'n': 5  # Number of rows shown in head/tail
+    }
+    
     # Prepare template context
     context = {
         'title': title,
@@ -491,7 +531,9 @@ def profile(
         'variables': variables,
         'summary_plots': summary_plots,
         'duplicate_samples': duplicate_samples,
-        'theme': theme
+        'theme': theme,
+        'dataframe_summary_data': dataframe_summary_data,
+        'is_pdf_output': return_static
     }
     
     # Generate HTML report

@@ -37,6 +37,7 @@
             overflow-y: auto;
             border-right: 2px solid var(--border-color);
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            z-index: 1000;  /* Ensure sidebar stays on top */
         }
 
         .sidebar h2 {
@@ -222,18 +223,34 @@
             color: var(--text-color);
         }
 
-        .info-panel pre {
+        .info-panel pre, .stats-panel pre {
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 14px;
             line-height: 1.4;
             background-color: var(--bg-color-alt);
             padding: 15px;
             border-radius: 4px;
+            white-space: pre;
+            word-wrap: normal;
             overflow-x: auto;
             max-height: 400px;
             overflow-y: auto;
             margin: 0;
             color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .stats-panel h4 {
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            font-size: 1.1em;
+            color: var(--text-color);
+        }
+
+        .stats-panel p {
+            color: var(--text-color);
+            font-style: italic;
+            margin: 0.5em 0;
         }
 
         .stats-table {
@@ -371,9 +388,20 @@
                 color: black !important;
             }
 
-            .info-panel pre {
+            .info-panel pre, .stats-panel pre {
                 background-color: white !important;
                 border: 1px solid #999 !important;
+                color: black !important;
+                white-space: pre;
+                overflow-x: visible;
+                page-break-inside: avoid;
+            }
+
+            .stats-panel h4 {
+                color: black !important;
+            }
+
+            .stats-panel p {
                 color: black !important;
             }
 

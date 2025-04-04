@@ -311,10 +311,12 @@ def profile(
     df.info(buf=info_buffer, max_cols=None, memory_usage=True, show_counts=True)
     info_str = info_buffer.getvalue()
     
-    describe_html = df.describe(include='all').to_html(
-        classes='table table-striped',
-        float_format=lambda x: f'{x:.2f}' if pd.notnull(x) else ''
-    )
+    # Generate split describe outputs
+    describe_num = df.describe(include=[np.number])
+    describe_num_str = describe_num.to_string() if not describe_num.empty else None
+    
+    describe_obj = df.describe(include=['object', 'category', 'bool'])
+    describe_obj_str = describe_obj.to_string() if not describe_obj.empty else None
     
     head_html = df.head(5).to_html(
         classes='table table-striped',
@@ -329,7 +331,8 @@ def profile(
     # Add DataFrame summary data to context
     dataframe_summary_data = {
         'info_str': info_str,
-        'describe_html': describe_html,
+        'describe_num_str': describe_num_str,
+        'describe_obj_str': describe_obj_str,
         'head_html': head_html,
         'tail_html': tail_html,
         'n': 5  # Number of rows shown in head/tail

@@ -78,11 +78,22 @@
                 <h3>DataFrame Info</h3>
                 <pre>{{ dataframe_summary_data.info_str }}</pre>
             </div>
-            <div class="dashboard-panel">
+            <div class="dashboard-panel stats-panel">
                 <h3>Summary Statistics</h3>
-                <div class="stats-table">
-                    {{ dataframe_summary_data.describe_html | safe }}
-                </div>
+                
+                <h4>Numerical Columns</h4>
+                {% if dataframe_summary_data.describe_num_str %}
+                    <pre>{{ dataframe_summary_data.describe_num_str }}</pre>
+                {% else %}
+                    <p>No numerical columns found.</p>
+                {% endif %}
+
+                <h4>Categorical/Object Columns</h4>
+                {% if dataframe_summary_data.describe_obj_str %}
+                    <pre>{{ dataframe_summary_data.describe_obj_str }}</pre>
+                {% else %}
+                    <p>No categorical/object columns found.</p>
+                {% endif %}
             </div>
             <div class="dashboard-panel full-width">
                 <h3>First {{ dataframe_summary_data.n }} Rows</h3>

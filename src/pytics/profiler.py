@@ -77,13 +77,21 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
     missing_count = series.isna().sum()
     distinct_count = series.nunique()
     
+    # Initialize base statistics that should be present for all variables
     var_stats = {
         'name': column,
         'type': str(series.dtype),
         'distinct_count': distinct_count,
         'distinct_pct': f"{(distinct_count / total_count) * 100:.2f}",
         'missing_count': missing_count,
-        'missing_pct': f"{(missing_count / total_count) * 100:.2f}"
+        'missing_pct': f"{(missing_count / total_count) * 100:.2f}",
+        'mean': None,
+        'std': None,
+        'min': None,
+        'q1': None,
+        'median': None,
+        'q3': None,
+        'max': None
     }
     
     # Add numeric statistics if applicable
@@ -127,16 +135,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
     else:
         # For categorical variables
         value_counts = series.value_counts()
-        var_stats.update({
-            'mode': value_counts.index[0] if not value_counts.empty else None,
-            'mean': None,
-            'std': None,
-            'min': None,
-            'q1': None,
-            'median': None,
-            'q3': None,
-            'max': None
-        })
+        var_stats['mode'] = value_counts.index[0] if not value_counts.empty else None
         
         # Distribution plot
         fig = px.bar(
@@ -536,6 +535,10 @@ def profile(
         'n': 5  # Number of rows shown in head/tail
     }
     
+    # Calculate additional statistics for root context
+    total_missing = df.isna().sum().sum()
+    n_duplicates = df.duplicated().sum()
+    
     # Prepare template context
     context = {
         'title': title,
@@ -545,7 +548,19 @@ def profile(
         'duplicate_samples': duplicate_samples,
         'theme': theme,
         'dataframe_summary_data': dataframe_summary_data,
-        'is_pdf_output': return_static
+        'is_pdf_output': return_static,
+        # Add flattened overview stats to root context
+        'n_vars': len(df.columns),
+        'n_obs': len(df),
+        'n_missing': total_missing,
+        'missing_percent': (total_missing / (len(df) * len(df.columns)) * 100).round(2),
+        'n_duplicates': n_duplicates,
+        'duplicates_percent': (n_duplicates / len(df) * 100).round(2),
+        'n_numeric': len(df.select_dtypes(include=['int64', 'float64']).columns),
+        'n_categorical': len(df.select_dtypes(include=['object', 'category']).columns),
+        'n_boolean': len(df.select_dtypes(include=['bool']).columns),
+        'n_date': len(df.select_dtypes(include=['datetime64']).columns),
+        'n_text': len(df.select_dtypes(include=['string']).columns)
     }
     
     # Generate HTML report

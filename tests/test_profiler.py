@@ -12,7 +12,7 @@ from pytics.profiler import DataSizeError, ProfilerError, compare
 from pathlib import Path
 from jinja2 import Environment, PackageLoader
 import builtins
-from .json_schema import PYTICS_JSON_SCHEMA
+from tests.json_schema import PYTICS_JSON_SCHEMA
 
 @pytest.fixture
 def sample_df():

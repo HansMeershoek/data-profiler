@@ -310,18 +310,14 @@ def profile(
     if target and target in df.columns:
         target_analysis = _analyze_variable(df, target, return_static=is_pdf_output)
         if target_analysis.get('distribution_plot'):
-            if is_pdf_output:
-                target_analysis['plot'] = target_analysis['distribution_plot']
-            else:
-                target_analysis['plot'] = target_analysis['distribution_plot'].to_html(full_html=False, include_plotlyjs='cdn')
+            # The distribution_plot is already in the correct format (HTML string or base64)
+            target_analysis['plot'] = target_analysis['distribution_plot']
     
     # Process variables for template
     for var in variables.values():
         if var.get('distribution_plot'):
-            if is_pdf_output:
-                var['plot'] = var['distribution_plot']
-            else:
-                var['plot'] = var['distribution_plot'].to_html(full_html=False, include_plotlyjs='cdn')
+            # The distribution_plot is already in the correct format (HTML string or base64)
+            var['plot'] = var['distribution_plot']
     
     # Prepare template context
     context = {
@@ -357,11 +353,11 @@ def profile(
                 'median': var.get('median', ''),
                 'q3': var.get('q3', ''),
                 'max': var.get('max', ''),
-                'plot': var.get('distribution_plot', '')
+                'plot': var.get('distribution_plot', '')  # Already in correct format
             }
             for name, var in variables.items()
         },
-        # Add plots directly to root context
+        # Add plots directly to root context - already in correct format
         'correlation_plot': plots.get('correlations', ''),
         'missing_plot': plots.get('types_and_missing', ''),
         'duplicates_plot': plots.get('duplicates', ''),

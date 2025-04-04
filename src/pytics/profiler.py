@@ -1,7 +1,7 @@
 """
 Core profiling functionality
 """
-from typing import Optional, List, Literal, Dict, Any
+from typing import Optional, List, Literal, Dict, Any, Union
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,6 +14,8 @@ import os
 import builtins
 from .visualizations import _convert_to_static_image
 from io import StringIO
+import json
+from datetime import datetime
 
 # Initialize Jinja2 environment with PackageLoader
 env = Environment(loader=PackageLoader('pytics', 'templates'))
@@ -243,11 +245,134 @@ def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
         for count in dup_counts[:10]  # Show top 10 duplicate patterns
     ]
 
+def _json_serializer(obj: Any) -> Union[str, float, None]:
+    """Custom JSON serializer for handling non-standard types"""
+    if isinstance(obj, (np.int64, np.int32)):
+        return int(obj)
+    if isinstance(obj, (np.float64, np.float32)):
+        return float(obj)
+    if isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    if pd.isna(obj):
+        return None
+    if isinstance(obj, (np.inf, float('inf'))):
+        return 'Infinity'
+    if isinstance(obj, (-np.inf, float('-inf'))):
+        return '-Infinity'
+    raise TypeError(f'Object of type {type(obj)} is not JSON serializable')
+
+def _prepare_json_data(context: Dict[str, Any], df: pd.DataFrame) -> Dict[str, Any]:
+    """Prepare data for JSON export"""
+    # Get package version
+    from importlib.metadata import version
+    pytics_version = version('pytics')
+
+    # Base structure
+    json_data = {
+        "metadata": {
+            "title": context['title'],
+            "generated_at": datetime.now().isoformat(),
+            "pytics_version": pytics_version
+        },
+        "overview": {
+            "n_vars": context['n_vars'],
+            "n_obs": context['n_obs'],
+            "n_missing": int(context['n_missing']),
+            "missing_percent": float(context['missing_percent']),
+            "n_duplicates": int(context['n_duplicates']),
+            "duplicates_percent": float(context['duplicates_percent']),
+            "n_numeric": context['n_numeric'],
+            "n_categorical": context['n_categorical'],
+            "n_boolean": context['n_boolean'],
+            "n_date": context['n_date'],
+            "n_text": context['n_text'],
+            "memory_usage": context['overview']['memory_usage'],
+            "avg_record_size": context['overview']['avg_record_size']
+        },
+        "dataframe_summary": {
+            "info": context['dataframe_summary_data']['info_str'],
+            "numeric_stats": df.describe(include=[np.number]).to_dict(),
+            "categorical_stats": df.describe(include=['object', 'category', 'bool']).to_dict(),
+            "head": df.head(5).to_dict(orient='records'),
+            "tail": df.tail(5).to_dict(orient='records')
+        },
+        "variables": {}
+    }
+
+    # Process variables
+    for name, var in context['variables'].items():
+        var_data = {
+            "type": var['type'],
+            "missing_count": int(var['missing']),
+            "missing_percent": float(var['missing_percent']),
+            "distinct_count": int(var['unique']),
+            "distinct_percent": float(var['unique_percent']),
+            "statistics": {}
+        }
+
+        # Add numeric statistics if available
+        if var.get('mean') not in ('', None):
+            var_data['statistics'].update({
+                "mean": float(var['mean']),
+                "std": float(var['std']),
+                "min": float(var['min']),
+                "q1": float(var['q1']),
+                "median": float(var['median']),
+                "q3": float(var['q3']),
+                "max": float(var['max'])
+            })
+
+        # Add distribution data
+        if df[name].dtype in ['int64', 'float64']:
+            hist_data = np.histogram(df[name].dropna(), bins=30)
+            var_data['distribution'] = {
+                "type": "histogram",
+                "counts": hist_data[0].tolist(),
+                "bin_edges": hist_data[1].tolist()
+            }
+        else:
+            value_counts = df[name].value_counts().head(20)
+            var_data['distribution'] = {
+                "type": "categorical",
+                "categories": value_counts.index.tolist(),
+                "counts": value_counts.values.tolist()
+            }
+
+        json_data['variables'][name] = var_data
+
+    # Add correlations if available
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+    if len(numeric_cols) > 1:
+        corr_matrix = df[numeric_cols].corr()
+        json_data['correlations'] = {
+            "matrix": corr_matrix.values.tolist(),
+            "columns": corr_matrix.columns.tolist()
+        }
+
+    # Add missing values analysis
+    json_data['missing_values'] = {
+        "by_column": df.isna().sum().to_dict(),
+        "patterns": df.isna().sum(axis=1).value_counts().to_dict()
+    }
+
+    # Add duplicates information
+    json_data['duplicates'] = {
+        "count": int(context['n_duplicates']),
+        "percent": float(context['duplicates_percent']),
+        "examples": df[df.duplicated(keep=False)].head(5).to_dict(orient='records')
+    }
+
+    # Add target analysis if available
+    if context.get('target'):
+        json_data['target_analysis'] = context['target']
+
+    return json_data
+
 def profile(
     df: pd.DataFrame,
     target: Optional[str] = None,
     output_file: str = 'report.html',
-    output_format: Literal['html', 'pdf'] = 'html',
+    output_format: Literal['html', 'pdf', 'json'] = 'html',
     include_sections: Optional[List[str]] = None,
     exclude_sections: Optional[List[str]] = None,
     theme: Literal['light', 'dark'] = 'light',
@@ -264,7 +389,7 @@ def profile(
         Name of the target variable for supervised learning tasks
     output_file : str, default 'report.html'
         Path to save the report
-    output_format : {'html', 'pdf'}, default 'html'
+    output_format : {'html', 'pdf', 'json'}, default 'html'
         Output format for the report
     include_sections : list of str, optional
         Sections to include in the report
@@ -356,7 +481,7 @@ def profile(
     context = {
         'title': title,
         'theme': theme,
-        'is_pdf_output': is_pdf_output,
+        'is_pdf_output': output_format == 'pdf',
         # Flatten overview stats into the root context
         'n_vars': len(df.columns),
         'n_obs': len(df),
@@ -401,6 +526,34 @@ def profile(
         'dataframe_summary_data': dataframe_summary_data
     }
     
+    # Handle JSON output format
+    if output_format == 'json':
+        try:
+            json_data = _prepare_json_data(context, df)
+            
+            # Apply section filtering if specified
+            if include_sections or exclude_sections:
+                sections = set(json_data.keys()) - {'metadata'}  # Don't filter metadata
+                if include_sections:
+                    sections = sections.intersection(include_sections)
+                if exclude_sections:
+                    sections = sections - set(exclude_sections)
+                filtered_data = {
+                    'metadata': json_data['metadata'],
+                    **{k: v for k, v in json_data.items() if k in sections}
+                }
+                json_data = filtered_data
+
+            # Save JSON output
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path.with_suffix('.json'), 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2, default=_json_serializer)
+            
+            return str(output_path.with_suffix('.json'))
+        except Exception as e:
+            raise ProfilerError(f"Error generating JSON output: {str(e)}")
+
     # Load and render template
     template = env.get_template('report_template.html.j2')
     html_report = template.render(**context)

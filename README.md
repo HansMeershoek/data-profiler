@@ -156,21 +156,42 @@ compare(
    - Data types distribution
    - Missing values summary
 
-2. **Variable Analysis**
+2. **DataFrame Summary**
+   - Complete DataFrame info output
+   - Numerical and categorical statistics
+   - Data preview (head/tail)
+   - Memory usage details
+
+3. **Variable Analysis**
    - Detailed statistics
    - Distribution plots
    - Missing value patterns
    - Unique values analysis
 
-3. **Correlations**
+4. **Correlations**
    - Correlation matrix
    - Feature relationships
    - Interactive heatmaps
 
-4. **Target Analysis** (when target specified)
+5. **Target Analysis** (when target specified)
    - Target distribution
    - Feature importance
    - Target correlations
+
+6. **Missing Values**
+   - Missing value patterns
+   - Distribution analysis
+   - Correlation with other features
+
+7. **Duplicates**
+   - Duplicate record analysis
+   - Pattern identification
+   - Impact assessment
+
+8. **About**
+   - Project information
+   - Feature overview
+   - GitHub repository links
 
 ## Edge Cases and Limitations
 

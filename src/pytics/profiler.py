@@ -251,187 +251,260 @@ def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
         for count in dup_counts[:10]  # Show top 10 duplicate patterns
     ]
 
+def _prepare_json_data(df: pd.DataFrame, target: Optional[str] = None, include_sections: Optional[List[str]] = None, exclude_sections: Optional[List[str]] = None) -> Dict[str, Any]:
+    """
+    Prepare data for JSON export
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame to analyze
+    target : str, optional
+        Name of the target variable
+    include_sections : List[str], optional
+        List of sections to include in the report
+    exclude_sections : List[str], optional
+        List of sections to exclude from the report
+        
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary containing the JSON data
+    """
+    # Initialize data structure
+    data = {
+        "metadata": {
+            "title": "Data Profile Report",
+            "generated_at": datetime.now().isoformat(),
+            "pytics_version": __version__,
+            "schema_version": "1.0.0"
+        },
+        "overview": {
+            "shape": {
+                "rows": len(df),
+                "columns": len(df.columns)
+            },
+            "n_vars": len(df.columns),
+            "n_obs": len(df),
+            "memory_usage": f"{df.memory_usage(deep=True).sum() / 1024**2:.2f} MB"
+        },
+        "variables": {}
+    }
+    
+    # Process each variable
+    for column in df.columns:
+        if target and column == target:
+            continue
+            
+        series = df[column]
+        var_data = {
+            "type": str(series.dtype),
+            "missing_count": int(series.isna().sum()),
+            "statistics": {},
+            "distribution": {"type": "none"}
+        }
+        
+        # Add statistics based on data type
+        if pd.api.types.is_numeric_dtype(series):
+            desc = series.describe()
+            var_data["statistics"].update({
+                "mean": float(desc["mean"]) if not pd.isna(desc["mean"]) else None,
+                "std": float(desc["std"]) if not pd.isna(desc["std"]) else None,
+                "min": float(desc["min"]) if not pd.isna(desc["min"]) else None,
+                "25%": float(desc["25%"]) if not pd.isna(desc["25%"]) else None,
+                "50%": float(desc["50%"]) if not pd.isna(desc["50%"]) else None,
+                "75%": float(desc["75%"]) if not pd.isna(desc["75%"]) else None,
+                "max": float(desc["max"]) if not pd.isna(desc["max"]) else None,
+                "unique_count": int(series.nunique())
+            })
+            
+            # Add histogram data
+            hist, bin_edges = np.histogram(series.dropna(), bins='auto')
+            var_data["distribution"] = {
+                "type": "histogram",
+                "counts": hist.tolist(),
+                "bin_edges": bin_edges.tolist()
+            }
+        else:
+            value_counts = series.value_counts()
+            var_data["statistics"].update({
+                "mode": str(value_counts.index[0]) if not value_counts.empty else None,
+                "unique_count": int(series.nunique())
+            })
+            
+            # Add bar chart data for categorical variables
+            if series.nunique() <= 50:  # Only for reasonable number of categories
+                var_data["distribution"] = {
+                    "type": "bar",
+                    "categories": value_counts.index.tolist(),
+                    "counts": value_counts.values.tolist()
+                }
+        
+        data["variables"][column] = var_data
+    
+    # Add correlations if requested
+    if (not include_sections or "correlations" in include_sections) and (not exclude_sections or "correlations" not in exclude_sections):
+        numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+        if len(numeric_cols) > 1:
+            corr_matrix = df[numeric_cols].corr()
+            data["correlations"] = {
+                "pearson": {
+                    col1: {
+                        col2: float(corr_matrix.loc[col1, col2]) if not pd.isna(corr_matrix.loc[col1, col2]) else None
+                        for col2 in corr_matrix.columns
+                    }
+                    for col1 in corr_matrix.index
+                }
+            }
+    
+    # Add missing values information if requested
+    if (not include_sections or "missing_values" in include_sections) and (not exclude_sections or "missing_values" not in exclude_sections):
+        total_missing = df.isna().sum().sum()
+        data["missing_values"] = {
+            "total_missing": int(total_missing),
+            "missing_percentage": float((total_missing / (df.size)) * 100),
+            "variables_with_missing": int(df.isna().any().sum())
+        }
+    
+    # Add duplicates information if requested
+    if (not include_sections or "duplicates" in include_sections) and (not exclude_sections or "duplicates" not in exclude_sections):
+        duplicates = df.duplicated().sum()
+        data["duplicates"] = {
+            "total_duplicates": int(duplicates),
+            "duplicate_percentage": float((duplicates / len(df)) * 100)
+        }
+    
+    # Add target analysis if target is specified
+    if target and target in df.columns:
+        target_series = df[target]
+        feature_importance = {}
+        
+        if pd.api.types.is_numeric_dtype(target_series):
+            # Calculate correlations for numeric target
+            for col in df.columns:
+                if col != target and pd.api.types.is_numeric_dtype(df[col]):
+                    corr = df[col].corr(target_series)
+                    feature_importance[col] = abs(float(corr)) if not pd.isna(corr) else 0.0
+        else:
+            # Calculate mutual information for categorical target
+            from sklearn.feature_selection import mutual_info_classif
+            numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+            if len(numeric_cols) > 0:
+                mi_scores = mutual_info_classif(df[numeric_cols], target_series)
+                for col, score in zip(numeric_cols, mi_scores):
+                    feature_importance[col] = float(score)
+        
+        data["target_analysis"] = {
+            "target_name": target,
+            "target_type": str(target_series.dtype),
+            "feature_importance": feature_importance
+        }
+    
+    return data
+
 def profile(
-    df: pd.DataFrame,
+    df: Union[pd.DataFrame, str],
     target: Optional[str] = None,
     output_file: str = 'report.html',
-    output_format: Literal['html', 'pdf'] = 'html',
+    output_format: Literal['html', 'pdf', 'json'] = 'html',
     include_sections: Optional[List[str]] = None,
     exclude_sections: Optional[List[str]] = None,
     theme: Literal['light', 'dark'] = 'light',
     title: str = "Data Profile Report"
 ) -> Optional[str]:
     """
-    Generate a profile report for the given DataFrame.
+    Generate a profile report for a DataFrame
     
     Parameters
     ----------
-    df : pandas.DataFrame
-        The DataFrame to profile
+    df : Union[pd.DataFrame, str]
+        DataFrame to profile or path to CSV/Parquet file
     target : str, optional
         Name of the target variable for supervised learning tasks
     output_file : str, default 'report.html'
         Path to save the report
-    output_format : {'html', 'pdf'}, default 'html'
-        Output format for the report
-    include_sections : list of str, optional
-        Sections to include in the report
-    exclude_sections : list of str, optional
-        Sections to exclude from the report
+    output_format : {'html', 'pdf', 'json'}, default 'html'
+        Format of the output report
+    include_sections : List[str], optional
+        List of sections to include in the report
+    exclude_sections : List[str], optional
+        List of sections to exclude from the report
     theme : {'light', 'dark'}, default 'light'
         Color theme for the report
     title : str, default "Data Profile Report"
-        Title for the report
+        Title of the report
         
     Returns
     -------
     Optional[str]
-        Path to the generated report file if output_file is provided, None otherwise
-        
-    Raises
-    ------
-    DataSizeError
-        If the DataFrame exceeds size limits
-    ProfilerError
-        For other profiling-related errors
+        Path to the generated report
     """
+    # Load data if string path is provided
+    if isinstance(df, str):
+        if df.endswith('.csv'):
+            df = pd.read_csv(df)
+        elif df.endswith('.parquet'):
+            df = pd.read_parquet(df)
+        else:
+            raise ValueError("Input file must be CSV or Parquet format")
+    
     # Check data size limits
     if len(df) > MAX_ROWS:
         raise DataSizeError(f"DataFrame exceeds {MAX_ROWS} rows limit")
     if len(df.columns) > MAX_COLS:
         raise DataSizeError(f"DataFrame exceeds {MAX_COLS} columns limit")
     
+    # Create output directory if it doesn't exist
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Handle JSON export
+    if output_format == 'json':
+        data = _prepare_json_data(df, target, include_sections, exclude_sections)
+        with open(output_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        return output_file
+    
     # Determine if we need static images for PDF output
-    is_pdf_output = output_format == 'pdf' or output_file.lower().endswith('.pdf')
+    return_static = output_format == 'pdf'
     
-    # Calculate all statistics and generate plots
-    overview = _calculate_overview_stats(df)
-    variables_list = [_analyze_variable(df, col, target, return_static=is_pdf_output) for col in df.columns if col != target]
-    # Convert variables list to dictionary with column names as keys
-    variables = {var['name']: var for var in variables_list}
+    # Calculate overview statistics
+    overview_stats = _calculate_overview_stats(df)
     
-    # Generate plots with appropriate format
-    plots = _create_summary_plots(df, target, theme, return_static=is_pdf_output)
-    duplicates = _analyze_duplicates(df)
+    # Analyze each variable
+    variables = []
+    for column in df.columns:
+        if target and column == target:
+            continue
+        variables.append(_analyze_variable(df, column, target, return_static))
     
-    # Generate DataFrame summary data
-    info_buffer = StringIO()
-    df.info(buf=info_buffer, max_cols=None, memory_usage=True, show_counts=True)
-    info_str = info_buffer.getvalue()
+    # Create summary plots
+    summary_plots = _create_summary_plots(df, target, theme, return_static)
     
-    # Generate split describe outputs
-    describe_num = df.describe(include=[np.number])
-    describe_num_str = describe_num.to_string() if not describe_num.empty else None
-    
-    describe_obj = df.describe(include=['object', 'category', 'bool'])
-    describe_obj_str = describe_obj.to_string() if not describe_obj.empty else None
-    
-    head_html = df.head(5).to_html(
-        classes='table table-striped',
-        float_format=lambda x: f'{x:.2f}' if isinstance(x, float) else x
-    )
-    
-    tail_html = df.tail(5).to_html(
-        classes='table table-striped',
-        float_format=lambda x: f'{x:.2f}' if isinstance(x, float) else x
-    )
-    
-    # Add DataFrame summary data to context
-    dataframe_summary_data = {
-        'info_str': info_str,
-        'describe_num_str': describe_num_str,
-        'describe_obj_str': describe_obj_str,
-        'head_html': head_html,
-        'tail_html': tail_html,
-        'n': 5  # Number of rows shown in head/tail
-    }
-    
-    # Target variable analysis if specified
-    target_analysis = None
-    if target and target in df.columns:
-        target_analysis = _analyze_variable(df, target, return_static=is_pdf_output)
-        if target_analysis.get('distribution_plot'):
-            # The distribution_plot is already in the correct format (HTML string or base64)
-            target_analysis['plot'] = target_analysis['distribution_plot']
-    
-    # Process variables for template
-    for var in variables.values():
-        if var.get('distribution_plot'):
-            # The distribution_plot is already in the correct format (HTML string or base64)
-            var['plot'] = var['distribution_plot']
+    # Analyze duplicates
+    duplicate_samples = _analyze_duplicates(df)
     
     # Prepare template context
     context = {
         'title': title,
-        'theme': theme,
-        'is_pdf_output': is_pdf_output,
-        # Flatten overview stats into the root context
-        'n_vars': len(df.columns),
-        'n_obs': len(df),
-        'n_missing': df.isna().sum().sum(),
-        'missing_percent': (df.isna().sum().sum() / (len(df) * len(df.columns)) * 100).round(2),
-        'n_duplicates': df.duplicated().sum(),
-        'duplicates_percent': (df.duplicated().sum() / len(df) * 100).round(2),
-        'n_numeric': len(df.select_dtypes(include=['int64', 'float64']).columns),
-        'n_categorical': len(df.select_dtypes(include=['object', 'category']).columns),
-        'n_boolean': len(df.select_dtypes(include=['bool']).columns),
-        'n_date': len(df.select_dtypes(include=['datetime64']).columns),
-        'n_text': len(df.select_dtypes(include=['string']).columns),
-        # Add overview stats
-        'overview': overview,
-        # Process variables to match template expectations
-        'variables': {
-            name: {
-                'type': var['type'],
-                'missing': var['missing_count'],
-                'missing_percent': var['missing_pct'],
-                'unique': var['distinct_count'],
-                'unique_percent': var['distinct_pct'],
-                'mean': var.get('mean', ''),
-                'std': var.get('std', ''),
-                'min': var.get('min', ''),
-                'q1': var.get('q1', ''),
-                'median': var.get('median', ''),
-                'q3': var.get('q3', ''),
-                'max': var.get('max', ''),
-                'plot': var.get('distribution_plot', '')  # Already in correct format
-            }
-            for name, var in variables.items()
-        },
-        # Add plots directly to root context - already in correct format
-        'correlation_plot': plots.get('correlations', ''),
-        'missing_plot': plots.get('types_and_missing', ''),
-        'duplicates_plot': plots.get('duplicates', ''),
-        # Add other context data
-        'plots': plots,
-        'duplicates': duplicates,
-        'target': target_analysis,
-        'dataframe_summary_data': dataframe_summary_data
+        'overview': overview_stats,
+        'variables': variables,
+        'summary_plots': summary_plots,
+        'duplicate_samples': duplicate_samples,
+        'theme': theme
     }
     
-    # Load and render template
+    # Generate HTML report
     template = env.get_template('report_template.html.j2')
-    html_report = template.render(**context)
+    html_content = template.render(**context)
     
-    # If no output file is specified, return the HTML for display in notebooks
-    if not output_file:
-        return html_report
-    
-    # Save the report
-    output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    if output_format == 'html' or output_path.suffix.lower() == '.html':
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(html_report)
-    else:  # pdf
-        pdf_path = output_path.with_suffix('.pdf')
-        result_file = open(pdf_path, "w+b")
-        pisa_status = pisa.CreatePDF(html_report, dest=result_file)
-        result_file.close()
-        
-        if pisa_status.err:
-            raise ProfilerError("Error generating PDF report")
+    if output_format == 'html':
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+    else:  # PDF
+        # Convert HTML to PDF
+        with open(output_file, "wb") as f:
+            pisa.CreatePDF(html_content, dest=f)
     
     return output_file
 

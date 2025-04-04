@@ -12,6 +12,7 @@ An interactive data profiling library for Python that generates comprehensive HT
 - 📊 **Interactive Visualizations**: Built with Plotly for dynamic, interactive charts
 - 📱 **Responsive Design**: Reports adapt to different screen sizes
 - 📄 **PDF Export**: Generate publication-ready PDF reports
+- 📋 **JSON Export**: Export profiling data in structured JSON format
 - 🎯 **Target Analysis**: Special insights for classification/regression tasks
 - 🔍 **Comprehensive Profiling**: Detailed statistics and distributions
 - ⚡ **Performance Optimized**: Efficient handling of large datasets
@@ -51,6 +52,9 @@ profile('path/to/your_data.parquet', output_file='report.html')
 # --- Advanced Profiling ---
 # Generate a PDF report
 profile(df, output_format='pdf', output_file='report.pdf')
+
+# Generate a JSON report
+profile(df, output_format='json', output_file='report.json')
 
 # Profile with a target variable for enhanced analysis
 profile(
@@ -119,11 +123,68 @@ profile(
     target='target_column',           # Target variable for supervised learning
     include_sections=['overview'],    # Sections to include
     exclude_sections=['correlations'],# Sections to exclude
-    output_format='pdf',             # 'html' or 'pdf'
+    output_format='pdf',             # 'html', 'pdf', or 'json'
     output_file='report.html',       # Output file path
     theme='light',                   # Report theme ('light' or 'dark')
     title='Custom Report Title'      # Report title
 )
+```
+
+### JSON Export
+The JSON export format provides a structured representation of the profiling data, suitable for programmatic analysis or integration with other tools. The JSON output includes:
+
+```python
+{
+    "metadata": {
+        "title": "Report Title",
+        "generated_at": "2024-01-01T00:00:00",
+        "pytics_version": "1.1.4",
+        "schema_version": "1.0"
+    },
+    "overview": {
+        "shape": {"rows": 1000, "columns": 10},
+        "n_vars": 10,
+        "n_obs": 1000,
+        "memory_usage": "1.2 MB",
+        ...
+    },
+    "variables": {
+        "column_name": {
+            "type": "float64",
+            "missing_count": 0,
+            "statistics": {
+                "mean": 0.5,
+                "std": 0.2,
+                ...
+            },
+            "distribution": {
+                "type": "histogram",
+                "counts": [...],
+                "bin_edges": [...]
+            }
+        },
+        ...
+    },
+    "correlations": {...},
+    "missing_values": {...},
+    "duplicates": {...},
+    "target_analysis": {...}  # When target is specified
+}
+```
+
+Example usage:
+```python
+# Generate JSON report
+profile(df, output_format='json', output_file='report.json')
+
+# Load and use the JSON data
+import json
+with open('report.json', 'r') as f:
+    profile_data = json.load(f)
+
+# Access specific metrics
+n_missing = profile_data['overview']['n_missing']
+column_stats = profile_data['variables']['column_name']['statistics']
 ```
 
 ### Compare Configuration

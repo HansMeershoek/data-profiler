@@ -4,6 +4,7 @@
 
 {% block navigation %}
     <li><a href="#overview" class="active">Overview</a></li>
+    <li><a href="#dataframe-summary">DataFrame Summary</a></li>
     <li><a href="#variables">Variables</a></li>
     <li><a href="#correlations">Correlations</a></li>
     <li><a href="#missing">Missing Values</a></li>
@@ -67,6 +68,34 @@
                     <td>{{ n_text }}</td>
                 </tr>
             </table>
+        </div>
+    </div>
+
+    <div id="dataframe-summary" class="section">
+        <h2>DataFrame Summary</h2>
+        <div class="overview-dashboard">
+            <div class="dashboard-panel info-panel">
+                <h3>DataFrame Info</h3>
+                <pre>{{ dataframe_summary_data.info_str }}</pre>
+            </div>
+            <div class="dashboard-panel">
+                <h3>Summary Statistics</h3>
+                <div class="stats-table">
+                    {{ dataframe_summary_data.describe_html | safe }}
+                </div>
+            </div>
+            <div class="dashboard-panel full-width">
+                <h3>First {{ dataframe_summary_data.n }} Rows</h3>
+                <div class="stats-table">
+                    {{ dataframe_summary_data.head_html | safe }}
+                </div>
+            </div>
+            <div class="dashboard-panel full-width">
+                <h3>Last {{ dataframe_summary_data.n }} Rows</h3>
+                <div class="stats-table">
+                    {{ dataframe_summary_data.tail_html | safe }}
+                </div>
+            </div>
         </div>
     </div>
 

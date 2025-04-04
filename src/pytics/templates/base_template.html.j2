@@ -7,7 +7,7 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         :root {
-            --sidebar-width: 250px;
+            --sidebar-width: 160px;
             --border-color: {{ '#bbbbbb' if theme == 'light' else '#404040' }};
             --border-color-dark: {{ '#999999' if theme == 'light' else '#505050' }};
             --bg-color: {{ '#ffffff' if theme == 'light' else '#1a1a1a' }};
@@ -196,6 +196,69 @@
             color: #0c5460;
         }
 
+        .overview-dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-panel {
+            background-color: var(--bg-color);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .dashboard-panel h3 {
+            margin: -20px -20px 15px -20px;
+            padding: 15px 20px;
+            background-color: var(--header-bg);
+            border-bottom: 2px solid var(--border-color);
+            border-radius: 6px 6px 0 0;
+            font-size: 1.3em;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .info-panel pre {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            background-color: var(--bg-color-alt);
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .stats-table {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 0;
+        }
+
+        .stats-table table {
+            width: 100%;
+            margin-bottom: 0;
+            font-size: 14px;
+        }
+
+        .stats-table th {
+            position: sticky;
+            top: 0;
+            background-color: var(--header-bg);
+            z-index: 1;
+        }
+
+        .dashboard-panel.full-width {
+            grid-column: 1 / -1;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 width: 100%;
@@ -288,6 +351,35 @@
             /* Remove hover effects in print */
             tr:hover {
                 background-color: transparent !important;
+            }
+
+            .overview-dashboard {
+                display: block;
+            }
+
+            .dashboard-panel {
+                background-color: white !important;
+                border-color: #999 !important;
+                box-shadow: none !important;
+                margin-bottom: 20px !important;
+                page-break-inside: avoid;
+            }
+
+            .dashboard-panel h3 {
+                background-color: #f0f0f0 !important;
+                border-color: #999 !important;
+                color: black !important;
+            }
+
+            .info-panel pre {
+                background-color: white !important;
+                border: 1px solid #999 !important;
+                color: black !important;
+            }
+
+            .stats-table th {
+                background-color: #f0f0f0 !important;
+                color: black !important;
             }
         }
     </style>

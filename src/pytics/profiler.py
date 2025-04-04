@@ -13,6 +13,7 @@ from xhtml2pdf import pisa
 import os
 import builtins
 from .visualizations import _convert_to_static_image
+from io import StringIO
 
 # Initialize Jinja2 environment with PackageLoader
 env = Environment(loader=PackageLoader('pytics', 'templates'))
@@ -305,6 +306,35 @@ def profile(
     plots = _create_summary_plots(df, target, theme, return_static=is_pdf_output)
     duplicates = _analyze_duplicates(df)
     
+    # Generate DataFrame summary data
+    info_buffer = StringIO()
+    df.info(buf=info_buffer, max_cols=None, memory_usage=True, show_counts=True)
+    info_str = info_buffer.getvalue()
+    
+    describe_html = df.describe(include='all').to_html(
+        classes='table table-striped',
+        float_format=lambda x: f'{x:.2f}' if pd.notnull(x) else ''
+    )
+    
+    head_html = df.head(5).to_html(
+        classes='table table-striped',
+        float_format=lambda x: f'{x:.2f}' if isinstance(x, float) else x
+    )
+    
+    tail_html = df.tail(5).to_html(
+        classes='table table-striped',
+        float_format=lambda x: f'{x:.2f}' if isinstance(x, float) else x
+    )
+    
+    # Add DataFrame summary data to context
+    dataframe_summary_data = {
+        'info_str': info_str,
+        'describe_html': describe_html,
+        'head_html': head_html,
+        'tail_html': tail_html,
+        'n': 5  # Number of rows shown in head/tail
+    }
+    
     # Target variable analysis if specified
     target_analysis = None
     if target and target in df.columns:
@@ -364,7 +394,8 @@ def profile(
         # Add other context data
         'plots': plots,
         'duplicates': duplicates,
-        'target': target_analysis
+        'target': target_analysis,
+        'dataframe_summary_data': dataframe_summary_data
     }
     
     # Load and render template

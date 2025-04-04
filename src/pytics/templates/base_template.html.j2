@@ -226,31 +226,68 @@
                 width: 100% !important;
             }
 
-            /* Ensure sections start at the top of the page */
-            .section {
-                margin-top: 0 !important;
-                page-break-inside: avoid;
-            }
-
-            /* Improve table readability in PDF */
-            table {
-                page-break-inside: avoid;
-            }
-
-            /* Ensure plots don't break across pages */
-            .plot-container {
-                page-break-inside: avoid;
-            }
-
-            /* Remove background colors for better print quality */
-            body, .section, .card {
+            /* Override all color variables with static values */
+            body {
                 background-color: white !important;
                 color: black !important;
             }
 
-            /* Adjust borders for better print contrast */
-            .section, .card, table, th, td {
+            .section {
+                background-color: white !important;
                 border-color: #999 !important;
+                box-shadow: none !important;
+                margin-top: 0 !important;
+                page-break-inside: avoid;
+            }
+
+            .section h2 {
+                background-color: #f0f0f0 !important;
+                border-color: #999 !important;
+                color: black !important;
+            }
+
+            .card {
+                background-color: white !important;
+                border-color: #999 !important;
+                box-shadow: none !important;
+            }
+
+            .card h3 {
+                background-color: #f0f0f0 !important;
+                border-color: #999 !important;
+                color: black !important;
+            }
+
+            table {
+                border-color: #999 !important;
+                page-break-inside: avoid;
+            }
+
+            th {
+                background-color: #f0f0f0 !important;
+                border-color: #999 !important;
+                color: black !important;
+            }
+
+            td {
+                border-color: #999 !important;
+                color: black !important;
+            }
+
+            .plot-container {
+                background-color: white !important;
+                border-color: #999 !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+
+            hr {
+                border-color: #999 !important;
+            }
+
+            /* Remove hover effects in print */
+            tr:hover {
+                background-color: transparent !important;
             }
         }
     </style>

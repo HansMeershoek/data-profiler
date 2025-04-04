@@ -272,9 +272,14 @@ def _prepare_json_data(context: Dict[str, Any], df: pd.DataFrame) -> Dict[str, A
         "metadata": {
             "title": context['title'],
             "generated_at": datetime.now().isoformat(),
-            "pytics_version": pytics_version
+            "pytics_version": pytics_version,
+            "schema_version": "1.0"
         },
         "overview": {
+            "shape": {
+                "rows": df.shape[0],
+                "columns": df.shape[1]
+            },
             "n_vars": context['n_vars'],
             "n_obs": context['n_obs'],
             "n_missing": int(context['n_missing']),
@@ -288,6 +293,15 @@ def _prepare_json_data(context: Dict[str, Any], df: pd.DataFrame) -> Dict[str, A
             "n_text": context['n_text'],
             "memory_usage": context['overview']['memory_usage'],
             "avg_record_size": context['overview']['avg_record_size']
+        },
+        "index_analysis": {
+            "name": df.index.name or "unnamed",
+            "dtype": str(df.index.dtype),
+            "unique_count": len(df.index.unique()),
+            "is_monotonic_increasing": df.index.is_monotonic_increasing,
+            "is_monotonic_decreasing": df.index.is_monotonic_decreasing,
+            "has_duplicates": df.index.has_duplicates,
+            "memory_usage": df.index.memory_usage()
         },
         "dataframe_summary": {
             "info": context['dataframe_summary_data']['info_str'],
@@ -307,11 +321,16 @@ def _prepare_json_data(context: Dict[str, Any], df: pd.DataFrame) -> Dict[str, A
             "missing_percent": float(var['missing_percent']),
             "distinct_count": int(var['unique']),
             "distinct_percent": float(var['unique_percent']),
+            "memory_usage": int(df[name].memory_usage(deep=True)),
             "statistics": {}
         }
 
-        # Add numeric statistics if available
-        if var.get('mean') not in ('', None):
+        # Add type-specific statistics
+        dtype = df[name].dtype
+        series = df[name]
+
+        if dtype in ['int64', 'float64', 'int32', 'float32']:
+            # Numeric statistics
             var_data['statistics'].update({
                 "mean": float(var['mean']),
                 "std": float(var['std']),
@@ -319,23 +338,68 @@ def _prepare_json_data(context: Dict[str, Any], df: pd.DataFrame) -> Dict[str, A
                 "q1": float(var['q1']),
                 "median": float(var['median']),
                 "q3": float(var['q3']),
-                "max": float(var['max'])
+                "max": float(var['max']),
+                "sum": float(series.sum()),
+                "skewness": float(series.skew()),
+                "kurtosis": float(series.kurtosis())
             })
-
-        # Add distribution data
-        if df[name].dtype in ['int64', 'float64']:
-            hist_data = np.histogram(df[name].dropna(), bins=30)
+            # Add distribution data
+            hist_data = np.histogram(series.dropna(), bins=30)
             var_data['distribution'] = {
                 "type": "histogram",
                 "counts": hist_data[0].tolist(),
                 "bin_edges": hist_data[1].tolist()
             }
+        elif dtype == 'bool':
+            # Boolean statistics
+            value_counts = series.value_counts()
+            var_data['statistics'].update({
+                "true_count": int(value_counts.get(True, 0)),
+                "false_count": int(value_counts.get(False, 0)),
+                "true_percent": float(value_counts.get(True, 0) / len(series.dropna()) * 100),
+                "false_percent": float(value_counts.get(False, 0) / len(series.dropna()) * 100)
+            })
+            var_data['distribution'] = {
+                "type": "boolean",
+                "counts": value_counts.to_dict()
+            }
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
+            # Date/Time statistics
+            non_null = series.dropna()
+            if len(non_null) > 0:
+                min_date = non_null.min()
+                max_date = non_null.max()
+                var_data['statistics'].update({
+                    "min_date": min_date.isoformat(),
+                    "max_date": max_date.isoformat(),
+                    "range": str(max_date - min_date)
+                })
+            # Add distribution (e.g., by year or month)
+            if len(non_null) > 0:
+                by_month = non_null.dt.to_period('M').value_counts().sort_index()
+                var_data['distribution'] = {
+                    "type": "datetime",
+                    "by_month": {
+                        "periods": [str(p) for p in by_month.index],
+                        "counts": by_month.values.tolist()
+                    }
+                }
         else:
-            value_counts = df[name].value_counts().head(20)
+            # Categorical/Object statistics
+            value_counts = series.value_counts()
+            if len(value_counts) > 0:
+                top_value = value_counts.index[0]
+                var_data['statistics'].update({
+                    "distinct_count": len(value_counts),
+                    "top_frequent_value": str(top_value),
+                    "frequency": int(value_counts.iloc[0])
+                })
+            # Add distribution data (top 20 categories)
+            top_cats = value_counts.head(20)
             var_data['distribution'] = {
                 "type": "categorical",
-                "categories": value_counts.index.tolist(),
-                "counts": value_counts.values.tolist()
+                "categories": [str(c) for c in top_cats.index],
+                "counts": top_cats.values.tolist()
             }
 
         json_data['variables'][name] = var_data

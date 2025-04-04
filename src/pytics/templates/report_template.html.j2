@@ -88,7 +88,7 @@
                         <th>Unique</th>
                         <td>{{ var_data.unique }} ({{ var_data.unique_percent }}%)</td>
                     </tr>
-                    {% if var_data.type == 'Numeric' %}
+                    {% if 'int64' in var_data.type or 'float64' in var_data.type %}
                         <tr>
                             <th>Mean</th>
                             <td>{{ var_data.mean }}</td>

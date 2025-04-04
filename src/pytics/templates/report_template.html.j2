@@ -9,6 +9,9 @@
     <li><a href="#correlations">Correlations</a></li>
     <li><a href="#missing">Missing Values</a></li>
     <li><a href="#duplicates">Duplicates</a></li>
+    <li style="margin-top: auto; padding-top: 1em; border-top: 1px solid var(--border-color);">
+        <a href="#about-project">About</a>
+    </li>
 {% endblock %}
 
 {% block content %}
@@ -218,5 +221,37 @@
                 No duplicate rows found in the dataset.
             </div>
         {% endif %}
+    </div>
+
+    <div id="about-project" class="section">
+        <h2>About Pytics</h2>
+        <div class="about-content" style="padding: 1.5em; border: 1px solid var(--border-color); background-color: var(--bg-color-alt); margin: 1em 0; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <p><strong>Pytics Data Profiling Library</strong></p>
+            <p>
+                This report was generated using Pytics, a Python library designed for interactive data profiling,
+                especially within notebook environments. The library provides comprehensive insights into your data
+                through detailed statistical analysis and interactive visualizations.
+            </p>
+            <p>
+                The project is currently under active development. Expect regular updates and new features!
+            </p>
+            <p>
+                <strong>Key Features:</strong>
+            </p>
+            <ul>
+                <li>Comprehensive data profiling with detailed statistics</li>
+                <li>Interactive visualizations powered by Plotly</li>
+                <li>Support for both HTML and PDF report formats</li>
+                <li>DataFrame comparison capabilities</li>
+                <li>Light and dark theme support</li>
+            </ul>
+            <p>
+                <strong>Feedback & Contributions:</strong><br>
+                Found a bug or have a suggestion? Please open an issue on the GitHub repository:
+                <a href="https://github.com/HansMeershoek/pytics" target="_blank" rel="noopener noreferrer" style="color: var(--text-color);">https://github.com/HansMeershoek/pytics</a>
+            </p>
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5em 0;">
+            <p style="margin-bottom: 0;"><small>Developed by Hans Meershoek with assistance from Claude AI.</small></p>
+        </div>
     </div>
 {% endblock %} 

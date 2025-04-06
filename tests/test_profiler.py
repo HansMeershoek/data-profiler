@@ -297,7 +297,8 @@ def test_compare_report_generation(tmp_path):
     assert "categorical" in content
     assert "only_df1" in content
     assert "only_df2" in content
-    assert "Distribution Comparison" in content
+    assert "plotly-latest.min.js" in content  # Check for Plotly script inclusion
+    assert "plotly-graph-div" in content  # Check for plot container
 
 def test_compare_report_themes(tmp_path):
     """Test that the compare function handles different themes correctly."""

@@ -15,6 +15,18 @@
 {% endblock %}
 
 {% block content %}
+    <style>
+        .plot-placeholder {
+            padding: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            color: #6c757d;
+            text-align: center;
+            font-style: italic;
+            margin: 10px 0;
+        }
+    </style>
     <div id="overview" class="section">
         <h2>Overview</h2>
         <div class="card">
@@ -176,7 +188,11 @@
                 
                 <div class="plot-container">
                     {% if is_pdf_output %}
-                        <img src="{{ var_data.plot }}" alt="{{ var_name }} Distribution" class="static-plot">
+                        {% if var_data.plot == "PLOT_OMITTED_FOR_PDF" %}
+                            <p class="plot-placeholder">[Plot rendering currently unavailable in PDF export due to engine issues]</p>
+                        {% else %}
+                            <img src="{{ var_data.plot }}" alt="{{ var_name }} Distribution" class="static-plot">
+                        {% endif %}
                     {% else %}
                         {{ var_data.plot | safe }}
                     {% endif %}
@@ -189,7 +205,11 @@
         <h2>Correlations</h2>
         <div class="plot-container">
             {% if is_pdf_output %}
-                <img src="{{ correlation_plot }}" alt="Correlation Matrix" class="static-plot">
+                {% if correlation_plot == "PLOT_OMITTED_FOR_PDF" %}
+                    <p class="plot-placeholder">[Plot rendering currently unavailable in PDF export due to engine issues]</p>
+                {% else %}
+                    <img src="{{ correlation_plot }}" alt="Correlation Matrix" class="static-plot">
+                {% endif %}
             {% else %}
                 {{ correlation_plot | safe }}
             {% endif %}
@@ -200,7 +220,11 @@
         <h2>Missing Values</h2>
         <div class="plot-container">
             {% if is_pdf_output %}
-                <img src="{{ missing_plot }}" alt="Missing Values Pattern" class="static-plot">
+                {% if missing_plot == "PLOT_OMITTED_FOR_PDF" %}
+                    <p class="plot-placeholder">[Plot rendering currently unavailable in PDF export due to engine issues]</p>
+                {% else %}
+                    <img src="{{ missing_plot }}" alt="Missing Values Pattern" class="static-plot">
+                {% endif %}
             {% else %}
                 {{ missing_plot | safe }}
             {% endif %}

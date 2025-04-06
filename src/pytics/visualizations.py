@@ -4,29 +4,27 @@ Visualization functions for data profiling and comparison
 from typing import Dict, Any, Union, Tuple
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.io as pio
-import base64
 from io import BytesIO
 
 def _convert_to_static_image(fig: go.Figure, format: str = 'png') -> str:
     """
     Convert a Plotly figure to a static image and return as base64 string.
+    Currently returns a placeholder text due to Kaleido engine issues.
     
     Parameters
     ----------
     fig : go.Figure
         The Plotly figure to convert
     format : str, default 'png'
-        The image format to use
+        The image format to use (currently ignored)
         
     Returns
     -------
     str
-        Base64 encoded image string with data URI prefix
+        Placeholder text indicating plot is omitted
     """
-    img_bytes = pio.to_image(fig, format=format, engine='kaleido')
-    base64_image = base64.b64encode(img_bytes).decode('utf-8')
-    return f"data:image/{format};base64,{base64_image}"
+    # Return placeholder for all static image conversions due to Kaleido issues
+    return "PLOT_OMITTED_FOR_PDF"
 
 def create_distribution_comparison_plot(
     distribution_data: Dict[str, Any],

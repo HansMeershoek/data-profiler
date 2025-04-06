@@ -1,7 +1,7 @@
 """
 Core profiling functionality
 """
-from typing import Optional, List, Literal, Dict, Any
+from typing import Optional, List, Literal, Dict, Any, Union
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -226,46 +226,38 @@ def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
 def profile(
     df: pd.DataFrame,
     target: Optional[str] = None,
-    output_file: str = 'report.html',
-    output_format: Literal['html', 'pdf'] = 'html',
-    include_sections: Optional[List[str]] = None,
-    exclude_sections: Optional[List[str]] = None,
-    theme: Literal['light', 'dark'] = 'light',
-    title: str = "Data Profile Report"
-) -> Optional[str]:
+    output_file: Optional[str] = None,
+    output_format: str = 'html',
+    title: str = "Data Profile Report",
+    theme: str = "light",
+    return_context: bool = False
+) -> Union[str, Dict[str, Any], None]:
     """
-    Generate a profile report for the given DataFrame.
+    Generate a profile report for a pandas DataFrame.
     
     Parameters
     ----------
     df : pandas.DataFrame
-        The DataFrame to profile
+        The DataFrame to analyze
     target : str, optional
         Name of the target variable for supervised learning tasks
-    output_file : str, default 'report.html'
-        Path to save the report
-    output_format : {'html', 'pdf'}, default 'html'
-        Output format for the report
-    include_sections : list of str, optional
-        Sections to include in the report
-    exclude_sections : list of str, optional
-        Sections to exclude from the report
-    theme : {'light', 'dark'}, default 'light'
-        Color theme for the report
+    output_file : str, optional
+        Path to save the report. If not provided, returns the report content
+    output_format : str, default 'html'
+        Output format ('html' or 'pdf')
     title : str, default "Data Profile Report"
         Title for the report
+    theme : str, default "light"
+        Color theme for plots ('light' or 'dark')
+    return_context : bool, default False
+        If True, returns the context dictionary instead of the rendered report
         
     Returns
     -------
-    Optional[str]
-        Path to the generated report file if output_file is provided, None otherwise
-        
-    Raises
-    ------
-    DataSizeError
-        If the DataFrame exceeds size limits
-    ProfilerError
-        For other profiling-related errors
+    Union[str, Dict[str, Any], None]
+        If output_file is None: returns the report content as string
+        If return_context is True: returns the context dictionary
+        If output_file is provided: returns the output file path
     """
     # Check data size limits
     if len(df) > 1_000_000:
@@ -274,7 +266,7 @@ def profile(
         raise DataSizeError("DataFrame exceeds 1000 columns limit")
     
     # Determine if we need static images for PDF output
-    is_pdf_output = output_format == 'pdf' or output_file.lower().endswith('.pdf')
+    is_pdf_output = output_format == 'pdf' or output_file and output_file.lower().endswith('.pdf')
     
     # Calculate all statistics and generate plots
     overview = _calculate_overview_stats(df)
@@ -383,6 +375,11 @@ def profile(
     
     # Load and render template
     template = env.get_template('report_template.html.j2')
+    
+    # Return context if requested (for testing)
+    if return_context:
+        return context
+        
     html_report = template.render(**context)
     
     # If no output file is specified, return the HTML for display in notebooks

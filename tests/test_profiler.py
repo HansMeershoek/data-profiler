@@ -45,10 +45,29 @@ def test_basic_profile(sample_df, tmp_path):
     assert output_file.exists()
 
 def test_pdf_export(sample_df, tmp_path):
-    """Test PDF export functionality"""
+    """Test PDF export functionality and plot placeholder behavior"""
     output_file = tmp_path / "report.pdf"
+    
+    # Get the profiling data without saving to file
+    context = profile(sample_df, output_format='pdf', return_context=True)
+    
+    # Verify that all plots in variables contain the placeholder
+    for var_name, var_data in context['variables'].items():
+        assert var_data['plot'] == 'PLOT_OMITTED_FOR_PDF', f"Plot for {var_name} should be replaced with placeholder"
+    
+    # Verify summary plots contain the placeholder
+    assert context['missing_plot'] == 'PLOT_OMITTED_FOR_PDF', "Missing values plot should be replaced with placeholder"
+    if context['correlation_plot']:  # Only present if there are numeric columns
+        assert context['correlation_plot'] == 'PLOT_OMITTED_FOR_PDF', "Correlation plot should be replaced with placeholder"
+    
+    # Now test actual PDF generation
     profile(sample_df, output_file=str(output_file), output_format='pdf')
-    assert output_file.exists()
+    assert output_file.exists(), "PDF file should be generated"
+    
+    # Verify the file is a valid PDF by checking its header
+    with open(output_file, 'rb') as f:
+        pdf_header = f.read(5)
+        assert pdf_header == b'%PDF-', "Generated file should be a valid PDF"
 
 def test_target_analysis(sample_df, tmp_path):
     """Test profiling with target variable"""

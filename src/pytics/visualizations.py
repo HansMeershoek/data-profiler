@@ -8,11 +8,13 @@ import plotly.io as pio
 import base64
 from io import BytesIO
 
-# Note: There is a known issue with Kaleido version >= 0.2.1 where PDF export hangs indefinitely.
-# This issue was introduced between pytics versions 1.1.3 and 1.1.4 when the explicit dependency
-# on kaleido>=0.2.1 was added. As a workaround, when generating PDFs, we return a placeholder
-# string instead of attempting to convert the plot to a static image. The HTML template handles
-# this placeholder by displaying an appropriate message.
+# Note: Due to a known issue with Kaleido version >= 0.2.1 where PDF export hangs indefinitely,
+# plots are intentionally omitted during PDF export. This issue was introduced between pytics
+# versions 1.1.3 and 1.1.4 when the explicit dependency on kaleido>=0.2.1 was added.
+# 
+# As a workaround, the _convert_to_static_image function returns a placeholder string ('PLOT_OMITTED_FOR_PDF')
+# when format='pdf' is specified. The HTML/PDF template handles this placeholder by displaying an
+# appropriate message in place of the plot. Interactive plots remain fully functional in HTML output.
 def _convert_to_static_image(fig: go.Figure, format: str = 'png') -> str:
     """
     Convert a Plotly figure to a static image and return as base64 string.
@@ -27,7 +29,7 @@ def _convert_to_static_image(fig: go.Figure, format: str = 'png') -> str:
     Returns
     -------
     str
-        Base64 encoded image string with data URI prefix or a placeholder string for PDF format
+        Base64 encoded image string with data URI prefix, or 'PLOT_OMITTED_FOR_PDF' for PDF format
     """
     if format == 'pdf':
         return "PLOT_OMITTED_FOR_PDF"

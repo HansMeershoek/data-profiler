@@ -201,9 +201,13 @@ compare(
 - Large datasets may require increased memory allocation
 
 ### PDF Export Limitations
-- Static plots are not rendered in PDF exports due to a known issue with Kaleido version >= 0.2.1
-- When exporting to PDF, plots are replaced with a message indicating they are not available
-- For static plot exports, use HTML format or consider using pytics version 1.1.3 which supports PDF plots
+
+When exporting reports to PDF format:
+- Plots are intentionally omitted due to a known issue with Kaleido version >= 0.2.1 that causes PDF export to hang indefinitely
+- A message is displayed in place of each plot indicating it has been omitted
+- All other report content (statistics, tables, etc.) remains fully functional
+- For viewing plots, use the HTML export format which provides fully interactive visualizations
+- If PDF plots are required, consider using pytics version 1.1.3 which supports them
 
 ### Special Cases
 - Missing Values: Automatically handled and reported

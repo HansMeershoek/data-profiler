@@ -44,7 +44,7 @@ def _calculate_overview_stats(df: pd.DataFrame) -> Dict[str, Any]:
         'avg_record_size': f"{df.memory_usage(deep=True).sum() / len(df) / 1024:.2f} KB"
     }
 
-def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = None, return_static: bool = False) -> Dict[str, Any]:
+def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = None, return_static: bool = False, output_format: str = 'html') -> Dict[str, Any]:
     """
     Analyze a single variable/column
     
@@ -58,6 +58,8 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
         Name of the target variable for supervised learning tasks
     return_static : bool, default False
         If True, return static images instead of interactive plots
+    output_format : str, default 'html'
+        The output format ('html' or 'pdf')
         
     Returns
     -------
@@ -101,7 +103,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
         )
         
         if return_static:
-            var_stats['distribution_plot'] = _convert_to_static_image(fig)
+            var_stats['distribution_plot'] = _convert_to_static_image(fig, format=output_format)
         else:
             var_stats['distribution_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
         
@@ -113,7 +115,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
                 fig = px.box(df, x=column, y=target, title=f"{column} by {target}")
             
             if return_static:
-                var_stats['target_plot'] = _convert_to_static_image(fig)
+                var_stats['target_plot'] = _convert_to_static_image(fig, format=output_format)
             else:
                 var_stats['target_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
     else:
@@ -129,7 +131,7 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
         )
         
         if return_static:
-            var_stats['distribution_plot'] = _convert_to_static_image(fig)
+            var_stats['distribution_plot'] = _convert_to_static_image(fig, format=output_format)
         else:
             var_stats['distribution_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
         
@@ -138,13 +140,13 @@ def _analyze_variable(df: pd.DataFrame, column: str, target: Optional[str] = Non
             fig = px.box(df, x=column, y=target, title=f"{target} by {column}")
             
             if return_static:
-                var_stats['target_plot'] = _convert_to_static_image(fig)
+                var_stats['target_plot'] = _convert_to_static_image(fig, format=output_format)
             else:
                 var_stats['target_plot'] = fig.to_html(full_html=False, include_plotlyjs='cdn')
     
     return var_stats
 
-def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme: str = 'light', return_static: bool = False) -> Dict[str, Any]:
+def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme: str = 'light', return_static: bool = False, output_format: str = 'html') -> Dict[str, Any]:
     """
     Create summary plots for the DataFrame
     
@@ -158,6 +160,8 @@ def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme:
         Color theme for plots
     return_static : bool, default False
         If True, return static images instead of interactive plots
+    output_format : str, default 'html'
+        The output format ('html' or 'pdf')
         
     Returns
     -------
@@ -197,37 +201,13 @@ def _create_summary_plots(df: pd.DataFrame, target: Optional[str] = None, theme:
             title='Correlation Matrix',
             template=plotly_template
         )
-        correlations_plot = _convert_to_static_image(fig2) if return_static else fig2.to_html(full_html=False, include_plotlyjs='cdn')
+        correlations_plot = _convert_to_static_image(fig2, format=output_format) if return_static else fig2.to_html(full_html=False, include_plotlyjs='cdn')
     else:
-        correlations_plot = ""
-    
-    # Target distribution plot
-    if target and target in df.columns:
-        if df[target].dtype in ['int64', 'float64']:
-            fig3 = go.Figure()
-            fig3.add_trace(go.Histogram(x=df[target], name='Distribution'))
-            fig3.add_trace(go.Box(x=df[target], name='Box Plot', yaxis='y2'))
-            fig3.update_layout(
-                title=f'{target} Distribution',
-                yaxis2=dict(overlaying='y', side='right'),
-                template=plotly_template
-            )
-        else:
-            counts = df[target].value_counts()
-            fig3 = px.bar(
-                x=counts.index,
-                y=counts.values,
-                title=f'{target} Distribution'
-            )
-            fig3.update_layout(template=plotly_template)
-        target_plot = _convert_to_static_image(fig3) if return_static else fig3.to_html(full_html=False, include_plotlyjs='cdn')
-    else:
-        target_plot = ""
+        correlations_plot = None
     
     return {
-        'types_and_missing': _convert_to_static_image(fig1) if return_static else fig1.to_html(full_html=False, include_plotlyjs='cdn'),
-        'correlations': correlations_plot,
-        'target_distribution': target_plot
+        'types_missing': _convert_to_static_image(fig1, format=output_format) if return_static else fig1.to_html(full_html=False, include_plotlyjs='cdn'),
+        'correlations': correlations_plot
     }
 
 def _analyze_duplicates(df: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -298,12 +278,12 @@ def profile(
     
     # Calculate all statistics and generate plots
     overview = _calculate_overview_stats(df)
-    variables_list = [_analyze_variable(df, col, target, return_static=is_pdf_output) for col in df.columns if col != target]
+    variables_list = [_analyze_variable(df, col, target, return_static=is_pdf_output, output_format=output_format) for col in df.columns if col != target]
     # Convert variables list to dictionary with column names as keys
     variables = {var['name']: var for var in variables_list}
     
     # Generate plots with appropriate format
-    plots = _create_summary_plots(df, target, theme, return_static=is_pdf_output)
+    plots = _create_summary_plots(df, target, theme, return_static=is_pdf_output, output_format=output_format)
     duplicates = _analyze_duplicates(df)
     
     # Generate DataFrame summary data
@@ -341,7 +321,7 @@ def profile(
     # Target variable analysis if specified
     target_analysis = None
     if target and target in df.columns:
-        target_analysis = _analyze_variable(df, target, return_static=is_pdf_output)
+        target_analysis = _analyze_variable(df, target, return_static=is_pdf_output, output_format=output_format)
         if target_analysis.get('distribution_plot'):
             # The distribution_plot is already in the correct format (HTML string or base64)
             target_analysis['plot'] = target_analysis['distribution_plot']
@@ -392,7 +372,7 @@ def profile(
         },
         # Add plots directly to root context - already in correct format
         'correlation_plot': plots.get('correlations', ''),
-        'missing_plot': plots.get('types_and_missing', ''),
+        'missing_plot': plots.get('types_missing', ''),
         'duplicates_plot': plots.get('duplicates', ''),
         # Add other context data
         'plots': plots,

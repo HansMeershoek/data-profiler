@@ -4,27 +4,36 @@ Visualization functions for data profiling and comparison
 from typing import Dict, Any, Union, Tuple
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import plotly.io as pio
+import base64
 from io import BytesIO
 
+# Note: There is a known issue with Kaleido version >= 0.2.1 where PDF export hangs indefinitely.
+# This issue was introduced between pytics versions 1.1.3 and 1.1.4 when the explicit dependency
+# on kaleido>=0.2.1 was added. As a workaround, when generating PDFs, we return a placeholder
+# string instead of attempting to convert the plot to a static image. The HTML template handles
+# this placeholder by displaying an appropriate message.
 def _convert_to_static_image(fig: go.Figure, format: str = 'png') -> str:
     """
     Convert a Plotly figure to a static image and return as base64 string.
-    Currently returns a placeholder text due to Kaleido engine issues.
     
     Parameters
     ----------
     fig : go.Figure
         The Plotly figure to convert
     format : str, default 'png'
-        The image format to use (currently ignored)
+        The image format to use
         
     Returns
     -------
     str
-        Placeholder text indicating plot is omitted
+        Base64 encoded image string with data URI prefix or a placeholder string for PDF format
     """
-    # Return placeholder for all static image conversions due to Kaleido issues
-    return "PLOT_OMITTED_FOR_PDF"
+    if format == 'pdf':
+        return "PLOT_OMITTED_FOR_PDF"
+    img_bytes = pio.to_image(fig, format=format, engine='kaleido')
+    base64_image = base64.b64encode(img_bytes).decode('utf-8')
+    return f"data:image/{format};base64,{base64_image}"
 
 def create_distribution_comparison_plot(
     distribution_data: Dict[str, Any],

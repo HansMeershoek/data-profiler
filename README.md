@@ -200,6 +200,11 @@ compare(
 - Recommended maximum columns: 1000
 - Large datasets may require increased memory allocation
 
+### PDF Export Limitations
+- Static plots are not rendered in PDF exports due to a known issue with Kaleido version >= 0.2.1
+- When exporting to PDF, plots are replaced with a message indicating they are not available
+- For static plot exports, use HTML format or consider using pytics version 1.1.3 which supports PDF plots
+
 ### Special Cases
 - Missing Values: Automatically handled and reported
 - Categorical Variables: Limited to 1000 unique values by default
